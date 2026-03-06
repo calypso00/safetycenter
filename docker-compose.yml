@@ -1,0 +1,176 @@
+# =============================================================================
+# 안전체험관 자동화 시스템 - Docker Compose
+# =============================================================================
+# 사용법:
+# 1. .env 파일 생성: cp .env.example .env
+# 2. 환경 변수 설정: .env 파일에서 모든 값을 안전하게 변경
+# 3. docker-compose up -d
+# =============================================================================
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: safety-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: safety_experience
+      MYSQL_USER: ${DB_USER:-safety}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-safetypassword}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      - safety-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  # Redis Cache (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: safety-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - safety-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  # Backend API Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: safety-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-safety}
+      - DB_PASSWORD=${DB_PASSWORD:-}
+      - DB_NAME=safety_experience
+      - JWT_SECRET=${JWT_SECRET:-}
+      - JWT_EXPIRES_IN=24h
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - FACE_RECOGNITION_URL=http://face-recognition:5001
+      - CORS_ORIGIN=http://localhost:5173
+    volumes:
+      - ./backend/src:/app/src:ro
+    networks:
+      - safety-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /app/tmp:noexec,nosuid,size=10m
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: safety-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    networks:
+      - safety-network
+    depends_on:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:noexec,nosuid,size=50m
+      - /var/run:noexec,nosuid,size=10m
+      - /tmp:noexec,nosuid,size=10m
+
+  # Face Recognition Service
+  face-recognition:
+    build:
+      context: ./face-recognition
+      dockerfile: Dockerfile
+    container_name: safety-face-recognition
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${FLASK_SECRET:-flask-secret-change-in-production}
+      - BACKEND_API_KEY=${BACKEND_API_KEY:-default-api-key-change-in-production}
+      - DEBUG=False
+      - HOST=0.0.0.0
+      - PORT=5001
+      - FACE_RECOGNITION_TOLERANCE=0.6
+      - MODEL=hog
+      - BACKEND_URL=http://backend:3000
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+    volumes:
+      - face_data:/app/data
+    networks:
+      - safety-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=200m
+
+# Volumes
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  face_data:
+    driver: local
+
+# Networks
+networks:
+  safety-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
