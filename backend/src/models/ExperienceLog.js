@@ -12,10 +12,14 @@ class ExperienceLog {
   static async create(logData) {
     const { user_id, program_id, reservation_id, entry_method = 'face', notes = null } = logData;
     
+    // undefined 값을 null로 변환 (SQL 바인딩 오류 방지)
+    const safeProgramId = program_id ?? null;
+    const safeReservationId = reservation_id ?? null;
+    
     const result = await db.query(
       `INSERT INTO experience_logs (user_id, program_id, reservation_id, entry_time, entry_method, notes)
        VALUES (?, ?, ?, NOW(), ?, ?)`,
-      [user_id, program_id, reservation_id, entry_method, notes]
+      [user_id, safeProgramId, safeReservationId, entry_method, notes]
     );
     
     return result.insertId;

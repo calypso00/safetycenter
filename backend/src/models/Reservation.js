@@ -68,15 +68,15 @@ class Reservation {
     const total = countResult[0].total;
 
     // 목록 조회
-    // LIMIT/OFFSET은 prepared statement의 파라미터로 전달
+    // LIMIT/OFFSET은 prepared statement 파라미터로 전달할 수 없어 쿼리에 직접 삽입
     const reservations = await db.query(
       `SELECT r.*, p.name as program_name, p.location, p.duration_minutes
        FROM reservations r
        JOIN programs p ON r.program_id = p.id
        ${whereClause}
         ORDER BY r.reservation_date DESC, r.time_slot DESC
-       LIMIT ? OFFSET ?`,
-      [...params, limitNum, offset]
+       LIMIT ${limitNum} OFFSET ${offset}`,
+      params
     );
 
     return { reservations, total };

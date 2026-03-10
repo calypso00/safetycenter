@@ -210,6 +210,68 @@ const FaceStatusDesc = styled.p`
   opacity: 0.8;
 `;
 
+// Instruction Styles
+const InstructionCard = styled.div`
+  width: 100%;
+  max-width: 480px;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+`;
+
+const InstructionTitle = styled.h3`
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+`;
+
+const InstructionList = styled.ol`
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+  
+  li {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    strong {
+      color: var(--primary-color);
+    }
+  }
+`;
+
+const InstructionTip = styled.p`
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: #e0f2fe;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 0;
+`;
+
+const FaceGuideText = styled.div`
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  pointer-events: none;
+`;
+
 const getStatusText = (status) => {
   switch (status) {
     case 'pending': return '대기중';
@@ -322,16 +384,34 @@ const MyPage = () => {
 
   const startCamera = async () => {
     try {
+      console.log('카메라 시작 요청...');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 480, height: 360, facingMode: 'user' }
       });
+      console.log('카메라 스트림 획득 성공:', stream);
       streamRef.current = stream;
+      
       if (videoRef.current) {
+        console.log('비디오 요소에 스트림 설정...');
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setIsStreaming(true);
+        
+        // 비디오가 로드될 때까지 기다림
+        videoRef.current.onloadedmetadata = () => {
+          console.log('비디오 메타데이터 로드 완료');
+          videoRef.current.play().then(() => {
+            console.log('비디오 재생 시작');
+            setIsStreaming(true);
+          }).catch(err => {
+            console.error('비디오 재생 실패:', err);
+            toast.error('비디오 재생에 실패했습니다.');
+          });
+        };
+      } else {
+        console.error('videoRef.current가 null입니다');
+        toast.error('비디오 요소를 찾을 수 없습니다.');
       }
     } catch (error) {
+      console.error('카메라 접근 오류:', error);
       toast.error('카메라 접근에 실패했습니다. 카메라 권한을 허용해주세요.');
     }
   };
@@ -351,8 +431,17 @@ const MyPage = () => {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
+    // 비디오 준비 상태 확인
+    if (video.readyState < 2) {
+      toast.error('카메라가 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    
+    // 변환 행렬 초기화 (누적 방지)
+    context.setTransform(1, 0, 0, 1, 0, 0);
     
     // Mirror the image
     context.translate(canvas.width, 0);
@@ -620,37 +709,55 @@ const MyPage = () => {
               ) : (
                 <>
                   <FaceStatusCard $registered={false}>
-                    <FaceStatusIcon>no_face</FaceStatusIcon>
+                    <FaceStatusIcon>📷</FaceStatusIcon>
                     <FaceStatusText>
                       <FaceStatusTitle $registered={false}>얼굴 미등록</FaceStatusTitle>
                       <FaceStatusDesc $registered={false}>
-                        키오스크 출입 시스템을 사용하려면 얼굴을 등록하세요..
+                        키오스크 출입 시스템을 사용하려면 얼굴을 등록하세요
                       </FaceStatusDesc>
                     </FaceStatusText>
                   </FaceStatusCard>
 
-                  {isStreaming ? (
-                    <>
-                      <VideoContainer>
-                        <VideoPreview ref={videoRef} autoPlay playsInline muted />
-                        <FaceOverlay />
-                      </VideoContainer>
-                      <CanvasPreview ref={canvasRef} />
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                        <Button 
-                          onClick={captureAndRegister} 
-                          disabled={isRegistering}
-                        >
-                          {isRegistering ? '등록 중...' : '촬영 & 등록'}
-                        </Button>
-                        <Button variant="secondary" onClick={stopCamera}>
-                          취소
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <Button onClick={startCamera}>
-                      Start Camera
+                  {!isStreaming && (
+                    <InstructionCard>
+                      <InstructionTitle>📝 얼굴 등록 방법</InstructionTitle>
+                      <InstructionList>
+                        <li>1. 아래 <strong>[카메라 시작]</strong> 버튼을 클릭하세요</li>
+                        <li>2. 얼굴을 화면 중앙의 타원 안에 맞춰 주세요</li>
+                        <li>3. <strong>[촬영 & 등록]</strong> 버튼을 클릭하면 등록 완료!</li>
+                      </InstructionList>
+                      <InstructionTip>
+                        💡 팁: 밝은 곳에서 등록하고, 안경이나 모자를 벗으면 더 정확해요
+                      </InstructionTip>
+                    </InstructionCard>
+                  )}
+
+                  {/* 비디오 요소는 항상 렌더링 (숨김 처리) */}
+                  <VideoContainer style={{ display: isStreaming ? 'block' : 'none' }}>
+                    <VideoPreview ref={videoRef} autoPlay playsInline muted />
+                    <FaceOverlay />
+                    {isStreaming && <FaceGuideText>얼굴을 이 영역에 맞춰주세요</FaceGuideText>}
+                  </VideoContainer>
+                  <CanvasPreview ref={canvasRef} />
+                  
+                  {isStreaming && (
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <Button
+                        onClick={captureAndRegister}
+                        disabled={isRegistering}
+                        size="large"
+                      >
+                        {isRegistering ? '등록 중...' : '촬영 & 등록'}
+                      </Button>
+                      <Button variant="secondary" onClick={stopCamera}>
+                        취소
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {!isStreaming && (
+                    <Button onClick={startCamera} size="large">
+                      카메라 시작
                     </Button>
                   )}
                 </>

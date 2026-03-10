@@ -165,7 +165,8 @@ const FaceRecognitionPanel = ({ onEntry, onExit }) => {
     const checkStatus = async () => {
       try {
         const response = await faceService.getModuleStatus();
-        setModuleStatus(response.data);
+        // API 인터셉터에서 이미 response.data를 반환하므로 response直接使用
+        setModuleStatus(response);
       } catch (error) {
         console.error('Failed to check module status:', error);
         setModuleStatus({ status: 'offline' });
@@ -185,18 +186,22 @@ const FaceRecognitionPanel = ({ onEntry, onExit }) => {
     try {
       const response = await faceService.verifyFace(imageData);
       
-      if (response.success && response.data?.user) {
+      // response 구조: { success: true, message: '안면 인증 성공', user: {...} }
+      // 또는 { success: true, data: { user: {...} } } 형태 모두 지원
+      const userData = response.user || response.data?.user;
+      
+      if (response.success && userData) {
         setStatus('success');
         setResult({
-          user: response.data.user,
-          confidence: response.data.user.confidence
+          user: userData,
+          confidence: userData.confidence
         });
 
         // Call callback based on mode
         if (mode === 'entry' && onEntry) {
-          onEntry(response.data.user);
+          onEntry(userData);
         } else if (mode === 'exit' && onExit) {
-          onExit(response.data.user);
+          onExit(userData);
         }
       } else {
         setStatus('error');

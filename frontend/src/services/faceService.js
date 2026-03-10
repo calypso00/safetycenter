@@ -2,6 +2,9 @@ import api from './api';
 
 /**
  * 안면인식 서비스
+ * 
+ * 참고: api.js의 응답 인터셉터에서 이미 response.data를 반환하므로
+ * 여기서는 추가로 .data를 접근하지 않습니다.
  */
 const faceService = {
   /**
@@ -15,8 +18,8 @@ const faceService = {
     if (userId) {
       data.user_id = userId;
     }
-    const response = await api.post('/face/register', data);
-    return response.data;
+    // api.post는 이미 response.data를 반환함
+    return await api.post('/face/register', data);
   },
 
   /**
@@ -25,8 +28,7 @@ const faceService = {
    * @returns {Promise} 인증 결과
    */
   async verifyFace(image) {
-    const response = await api.post('/face/verify', { image });
-    return response.data;
+    return await api.post('/face/verify', { image });
   },
 
   /**
@@ -35,8 +37,7 @@ const faceService = {
    * @returns {Promise} 감지 결과
    */
   async detectFaces(image) {
-    const response = await api.post('/face/detect', { image });
-    return response.data;
+    return await api.post('/face/detect', { image });
   },
 
   /**
@@ -46,8 +47,7 @@ const faceService = {
    */
   async getFaceStatus(userId) {
     const url = userId ? `/face/status/${userId}` : '/face/status';
-    const response = await api.get(url);
-    return response.data;
+    return await api.get(url);
   },
 
   /**
@@ -57,8 +57,7 @@ const faceService = {
    */
   async deleteFace(userId) {
     const url = userId ? `/face/${userId}` : '/face';
-    const response = await api.delete(url);
-    return response.data;
+    return await api.delete(url);
   },
 
   /**
@@ -66,8 +65,7 @@ const faceService = {
    * @returns {Promise} 모듈 상태
    */
   async getModuleStatus() {
-    const response = await api.get('/face/module-status');
-    return response.data;
+    return await api.get('/face/module-status');
   }
 };
 

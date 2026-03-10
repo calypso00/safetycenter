@@ -97,15 +97,8 @@ function AppRoutes() {
         }
       />
       
-      {/* Kiosk Route */}
-      <Route
-        path="/kiosk"
-        element={
-          <ProtectedRoute>
-            <Kiosk />
-          </ProtectedRoute>
-        }
-      />
+      {/* Kiosk Route - Public access */}
+      <Route path="/kiosk" element={<Kiosk />} />
       
       {/* Admin Routes */}
       <Route

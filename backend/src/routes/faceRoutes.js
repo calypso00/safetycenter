@@ -76,9 +76,8 @@ router.post('/register',
  *         description: Face verification result
  */
 
-// POST /api/face/verify - Verify face
+// POST /api/face/verify - Verify face (public for kiosk)
 router.post('/verify',
-  authenticate,
   [
     body('image').optional().isString().withMessage('Image must be a string'),
     body('face_encoding').optional().isString().withMessage('Face encoding must be a string')
@@ -109,9 +108,8 @@ router.post('/verify',
  *         description: Face detection result
  */
 
-// POST /api/face/detect - Detect faces in image
+// POST /api/face/detect - Detect faces in image (public for kiosk)
 router.post('/detect',
-  authenticate,
   [
     body('image').notEmpty().withMessage('Image is required')
   ],
@@ -175,7 +173,7 @@ router.delete('/:userId?', authenticate, faceController.deleteFace);
  *         description: Module status
  */
 
-// GET /api/face/module-status - Get module status (admin only)
-router.get('/module-status', authenticate, requireAdmin, faceController.getModuleStatus);
+// GET /api/face/module-status - Get module status (public for kiosk)
+router.get('/module-status', faceController.getModuleStatus);
 
 module.exports = router;

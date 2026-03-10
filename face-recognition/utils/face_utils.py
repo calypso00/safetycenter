@@ -3,21 +3,54 @@
 """
 import json
 import os
+import sys
 from datetime import datetime
-import face_recognition
+
+# face_recognition 가져오기 처리
+try:
+    import face_recognition
+    FACE_RECOGNITION_AVAILABLE = True
+except ImportError:
+    print("Warning: face_recognition module not found. Face recognition features will be disabled.", file=sys.stderr)
+    print("Please install it: pip install face_recognition==1.3.0", file=sys.stderr)
+    face_recognition = None
+    FACE_RECOGNITION_AVAILABLE = False
+
 import numpy as np
-from config import Config
+
+# config 가져오기 (Docker 환경 고려)
+try:
+    # Docker 환경에서 /app 경로 기준으로 import
+    import sys
+    sys.path.insert(0, '/app')
+    from config import Config
+except ImportError:
+    # 직접 실행 시를 대비한 fallback
+    try:
+        from ..config import Config
+    except ImportError:
+        print("Warning: Could not import Config. Using default values.", file=sys.stderr)
+        # 기본 설정 클래스
+        class Config:
+            FACE_RECOGNITION_TOLERANCE = 0.6
+            MODEL = "hog"
+            DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 
 
 class FaceRecognitionManager:
     """안면인식 관리 클래스"""
-    
+
     def __init__(self):
+        if not FACE_RECOGNITION_AVAILABLE:
+            raise RuntimeError(
+                "Face recognition is not available. "
+                "Please install face_recognition: pip install face_recognition==1.3.0"
+            )
         self.tolerance = Config.FACE_RECOGNITION_TOLERANCE
-        self.model = Config.MODEL
+        self.model = getattr(Config, 'MODEL', 'hog')
         self.known_encodings = {}  # user_id -> face_encoding
         self.load_known_faces()
-    
+
     def load_known_faces(self):
         """
         저장된 얼굴 인코딩 로드
@@ -39,7 +72,7 @@ class FaceRecognitionManager:
             except Exception as e:
                 print(f"Error loading face encodings: {e}")
                 self.known_encodings = {}
-    
+
     def _backup_corrupted_file(self, filepath):
         """손상된 파일 백업"""
         try:
@@ -48,7 +81,7 @@ class FaceRecognitionManager:
             print(f"Corrupted file backed up to: {backup_path}")
         except Exception as e:
             print(f"Failed to backup corrupted file: {e}")
-    
+
     def save_known_faces(self):
         """
         얼굴 인코딩을 파일로 저장
@@ -59,39 +92,43 @@ class FaceRecognitionManager:
             data = {}
             for user_id, encoding in self.known_encodings.items():
                 data[str(user_id)] = json.dumps(encoding.tolist())
-            
+
             with open(faces_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"Error saving face encodings: {e}")
-    
+
     def detect_faces(self, image_array):
         """
         이미지에서 얼굴 감지
-        
+
         Args:
             image_array (numpy.ndarray): RGB 이미지 배열
-            
+
         Returns:
             list: 감지된 얼굴 위치 리스트 [(top, right, bottom, left), ...]
         """
+        if not FACE_RECOGNITION_AVAILABLE:
+            return []
         face_locations = face_recognition.face_locations(
             image_array,
             model=self.model
         )
         return face_locations
-    
+
     def extract_encoding(self, image_array, face_location=None):
         """
         얼굴에서 특징 추출 (128차원 벡터)
-        
+
         Args:
             image_array (numpy.ndarray): RGB 이미지 배열
             face_location (tuple): 얼굴 위치 (top, right, bottom, left)
-            
+
         Returns:
             numpy.ndarray: 128차원 얼굴 인코딩 벡터
         """
+        if not FACE_RECOGNITION_AVAILABLE:
+            return None
         if face_location:
             encodings = face_recognition.face_encodings(
                 image_array,
@@ -99,96 +136,108 @@ class FaceRecognitionManager:
             )
         else:
             encodings = face_recognition.face_encodings(image_array)
-        
+
         if len(encodings) > 0:
             return encodings[0]
         return None
-    
+
     def register_face(self, user_id, image_array):
         """
         얼굴 등록
-        
+
         Args:
             user_id (int): 사용자 ID
             image_array (numpy.ndarray): RGB 이미지 배열
-            
+
         Returns:
             dict: 등록 결과
         """
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                'success': False,
+                'message': 'Face recognition module is not available.'
+            }
+
         # 얼굴 감지
         face_locations = self.detect_faces(image_array)
-        
+
         if len(face_locations) == 0:
             return {
                 'success': False,
                 'message': '이미지에서 얼굴을 감지할 수 없습니다.'
             }
-        
+
         if len(face_locations) > 1:
             return {
                 'success': False,
                 'message': '여러 개의 얼굴이 감지되었습니다. 한 명만 등록해주세요.'
             }
-        
+
         # 얼굴 특징 추출
         encoding = self.extract_encoding(image_array, face_locations[0])
-        
+
         if encoding is None:
             return {
                 'success': False,
                 'message': '얼굴 특징 추출에 실패했습니다.'
             }
-        
+
         # 저장
         self.known_encodings[user_id] = encoding
         self.save_known_faces()
-        
+
         return {
             'success': True,
             'message': '얼굴이 성공적으로 등록되었습니다.',
             'face_encoding': json.dumps(encoding.tolist())
         }
-    
+
     def verify_face(self, image_array):
         """
         얼굴 인증
-        
+
         Args:
             image_array (numpy.ndarray): RGB 이미지 배열
-            
+
         Returns:
             dict: 인증 결과
         """
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                'success': False,
+                'message': 'Face recognition module is not available.'
+            }
+
         # 얼굴 감지
         face_locations = self.detect_faces(image_array)
-        
+
         if len(face_locations) == 0:
             return {
                 'success': False,
                 'message': '이미지에서 얼굴을 감지할 수 없습니다.'
             }
-        
+
         # 얼굴 특징 추출
         encoding = self.extract_encoding(image_array, face_locations[0])
-        
+
         if encoding is None:
             return {
                 'success': False,
                 'message': '얼굴 특징 추출에 실패했습니다.'
             }
-        
+
         # 등록된 얼굴과 매칭
         best_match = None
         best_distance = self.tolerance
-        
+
         for user_id, known_encoding in self.known_encodings.items():
             # 유클리드 거리 계산
             distance = face_recognition.face_distance([known_encoding], encoding)[0]
-            
+
             if distance < best_distance:
                 best_distance = distance
                 best_match = user_id
-        
+
         if best_match is not None:
             confidence = 1 - best_distance
             return {
@@ -198,19 +247,19 @@ class FaceRecognitionManager:
                 'distance': round(best_distance, 4),
                 'message': '얼굴 인증 성공'
             }
-        
+
         return {
             'success': False,
             'message': '등록된 얼굴과 일치하는 사용자를 찾을 수 없습니다.'
         }
-    
+
     def delete_face(self, user_id):
         """
         등록된 얼굴 삭제
-        
+
         Args:
             user_id (int): 사용자 ID
-            
+
         Returns:
             dict: 삭제 결과
         """
@@ -221,21 +270,26 @@ class FaceRecognitionManager:
                 'success': True,
                 'message': '얼굴 데이터가 삭제되었습니다.'
             }
-        
+
         return {
             'success': False,
             'message': '등록된 얼굴 데이터가 없습니다.'
         }
-    
+
     def get_encoding_count(self):
         """
         등록된 얼굴 인코딩 개수 반환
-        
+
         Returns:
             int: 등록된 얼굴 개수
         """
         return len(self.known_encodings)
 
 
-# 싱글톤 인스턴스
-face_manager = FaceRecognitionManager()
+# 싱글톤 인스턴스 (face_recognition 사용 가능한 경우에만 생성)
+face_manager = None
+if FACE_RECOGNITION_AVAILABLE:
+    try:
+        face_manager = FaceRecognitionManager()
+    except Exception as e:
+        print(f"Warning: Failed to initialize FaceRecognitionManager: {e}", file=sys.stderr)

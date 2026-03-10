@@ -74,7 +74,7 @@ services:
       - JWT_EXPIRES_IN=24h
       - JWT_REFRESH_EXPIRES_IN=7d
       - FACE_RECOGNITION_URL=http://face-recognition:5001
-      - CORS_ORIGIN=http://localhost:5173
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
     volumes:
       - ./backend/src:/app/src:ro
     networks:
@@ -106,8 +106,9 @@ services:
     restart: unless-stopped
     ports:
       - "5173:80"
+      - "443:443"
     environment:
-      - VITE_API_URL=http://localhost:3000/api
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000/api}
     networks:
       - safety-network
     depends_on:
@@ -139,7 +140,8 @@ services:
       - FACE_RECOGNITION_TOLERANCE=0.6
       - MODEL=hog
       - BACKEND_URL=http://backend:3000
-      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - CORS_ORIGINS=${FACE_RECOGNITION_CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - PYTHONPATH=/app
     volumes:
       - face_data:/app/data
     networks:

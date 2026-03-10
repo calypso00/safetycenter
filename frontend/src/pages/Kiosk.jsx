@@ -205,31 +205,6 @@ const Kiosk = () => {
     });
   };
 
-  if (!isAuthenticated) {
-    return (
-      <KioskContainer>
-        <Header>
-          <Logo>🛡️ 안전체험관</Logo>
-          <DateTime>
-            <DateText>{formatDate(currentTime)}</DateText>
-            <TimeText>{formatTime(currentTime)}</TimeText>
-          </DateTime>
-        </Header>
-        
-        <LoginPrompt>
-          <LoginTitle>키오스크 로그인 필요</LoginTitle>
-          <LoginText>
-            키오스크를 사용하려면 로그인이 필요합니다.<br />
-            관리자 계정으로 로그인해주세요.
-          </LoginText>
-          <LoginButton onClick={() => window.location.href = '/login'}>
-            로그인하러 가기
-          </LoginButton>
-        </LoginPrompt>
-      </KioskContainer>
-    );
-  }
-
   return (
     <KioskContainer>
       <Header>

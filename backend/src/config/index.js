@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 /**
  * Get environment variable with optional default value
@@ -72,8 +73,8 @@ const config = {
   // CORS settings
   cors: {
     origin: process.env.NODE_ENV === 'development'
-      ? ['http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175']
-      : getEnvVar('CORS_ORIGIN', 'http://localhost:3001')
+      ? true  // 개발 환경에서는 모든 origin 허용
+      : getEnvVar('CORS_ORIGIN', 'http://localhost:3001').split(',').map(url => url.trim())
   }
 };
 

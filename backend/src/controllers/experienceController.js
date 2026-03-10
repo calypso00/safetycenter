@@ -123,6 +123,52 @@ class ExperienceController {
       next(error);
     }
   }
+
+  /**
+   * 키오스크용 입장 처리
+   * POST /api/experiences/entry
+   */
+  async recordEntry(req, res, next) {
+    try {
+      const { user_id, program_id, entry_method = 'face' } = req.body;
+      
+      // 기본 프로그램 ID 사용 (없는 경우)
+      const defaultProgramId = program_id || 1;
+      
+      const log = await experienceService.checkIn({
+        user_id,
+        program_id: defaultProgramId,
+        entry_method
+      });
+      
+      return createdResponse(res, log, '입장 처리가 완료되었습니다.');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 키오스크용 퇴장 처리
+   * PUT /api/experiences/:userId/exit
+   */
+  async recordExit(req, res, next) {
+    try {
+      const { userId } = req.params;
+      
+      // 사용자의 활성 체험 기록 찾기
+      const ExperienceLog = require('../models/ExperienceLog');
+      const activeLog = await ExperienceLog.findActiveByUserId(userId);
+      
+      if (!activeLog) {
+        return successResponse(res, { message: '활성 체험 기록이 없습니다.' });
+      }
+      
+      const log = await experienceService.checkOut(activeLog.id);
+      return successResponse(res, log, '퇴장 처리가 완료되었습니다.');
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new ExperienceController();
