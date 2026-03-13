@@ -108,6 +108,63 @@ class AdminController {
   }
 
   /**
+   * 예약 정보 수정
+   * PUT /api/admin/reservations/:id
+   */
+  async updateReservation(req, res, next) {
+    try {
+      const reservationId = parseInt(req.params.id);
+      const { status, reservation_date, time_slot, participant_count } = req.body;
+
+      // 예약 존재 확인
+      const existingReservation = await adminService.getReservationById(reservationId);
+      if (!existingReservation) {
+        throw new NotFoundError('예약을 찾을 수 없습니다.');
+      }
+
+      // 수정할 데이터 구성
+      const updateData = {};
+      
+      if (status !== undefined) {
+        // 유효한 상태 값인지 확인
+        const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+        if (!validStatuses.includes(status)) {
+          throw new BadRequestError('유효하지 않은 상태 값입니다.');
+        }
+        updateData.status = status;
+      }
+      
+      if (reservation_date !== undefined) {
+        updateData.reservation_date = reservation_date;
+      }
+      
+      if (time_slot !== undefined) {
+        updateData.time_slot = time_slot;
+      }
+      
+      if (participant_count !== undefined) {
+        const count = parseInt(participant_count);
+        if (isNaN(count) || count < 1 || count > 100) {
+          throw new BadRequestError('인원은 1명 이상 100명 이하로 입력해주세요.');
+        }
+        updateData.participant_count = count;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        throw new BadRequestError('수정할 항목이 없습니다.');
+      }
+
+      await adminService.updateReservation(reservationId, updateData);
+
+      return successResponse(res, {
+        message: '예약 정보가 수정되었습니다.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * 전체 체험 기록 목록
    * GET /api/admin/experiences
    */

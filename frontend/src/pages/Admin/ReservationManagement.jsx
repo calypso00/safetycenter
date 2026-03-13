@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Layout } from '../../components/layout';
-import { Button, Card, Loading, Modal } from '../../components/ui';
+import { Button, Card, Loading, Modal, Input } from '../../components/ui';
 import { useAuth } from '../../store/AuthContext';
 import { useToast } from '../../store/ToastContext';
 import adminService from '../../services/adminService';
@@ -264,6 +264,15 @@ const ReservationManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingReservation, setEditingReservation] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    status: '',
+    reservation_date: '',
+    time_slot: '',
+    participant_count: 1
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
   
   // 필터 상태
   const [statusFilter, setStatusFilter] = useState('');
@@ -334,6 +343,43 @@ const ReservationManagement = () => {
   const handleViewDetail = (reservation) => {
     setSelectedReservation(reservation);
     setShowModal(true);
+  };
+
+  const handleEdit = (reservation) => {
+    setEditingReservation(reservation);
+    setEditFormData({
+      status: reservation.status || '',
+      reservation_date: reservation.reservation_date || '',
+      time_slot: reservation.time_slot || '',
+      participant_count: reservation.participant_count || 1
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: name === 'participant_count' ? parseInt(value) || 1 : value
+    }));
+  };
+
+  const handleUpdateReservation = async () => {
+    if (!editingReservation) return;
+    
+    try {
+      setIsUpdating(true);
+      const response = await adminService.updateReservation(editingReservation.id, editFormData);
+      if (response.success) {
+        toast.success('예약 정보가 수정되었습니다.');
+        setShowEditModal(false);
+        fetchReservations();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || '예약 수정에 실패했습니다.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -495,6 +541,12 @@ const ReservationManagement = () => {
                         <ActionButton onClick={() => handleViewDetail(reservation)}>
                           상세보기
                         </ActionButton>
+                        <ActionButton 
+                          onClick={() => handleEdit(reservation)}
+                          style={{ marginLeft: '0.5rem' }}
+                        >
+                          수정
+                        </ActionButton>
                       </Td>
                     </Tr>
                   ))
@@ -583,6 +635,98 @@ const ReservationManagement = () => {
             <ModalRow>
               <ModalLabel>예약 신청일</ModalLabel>
               <ModalValue>{formatDateTime(selectedReservation.created_at)}</ModalValue>
+            </ModalRow>
+          </ModalContent>
+        )}
+      </Modal>
+
+      {/* 예약 수정 모달 */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="예약 정보 수정"
+        size="medium"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)} disabled={isUpdating}>
+              취소
+            </Button>
+            <Button onClick={handleUpdateReservation} disabled={isUpdating}>
+              {isUpdating ? '저장 중...' : '저장'}
+            </Button>
+          </>
+        }
+      >
+        {editingReservation && (
+          <ModalContent>
+            <ModalRow>
+              <ModalLabel>예약 ID</ModalLabel>
+              <ModalValue>{editingReservation.id}</ModalValue>
+            </ModalRow>
+            <ModalRow>
+              <ModalLabel>예약자</ModalLabel>
+              <ModalValue>{editingReservation.user_name || editingReservation.username}</ModalValue>
+            </ModalRow>
+            <ModalRow>
+              <ModalLabel>프로그램</ModalLabel>
+              <ModalValue>{editingReservation.program_name}</ModalValue>
+            </ModalRow>
+            <ModalRow>
+              <ModalLabel>상태</ModalLabel>
+              <Select 
+                name="status" 
+                value={editFormData.status} 
+                onChange={handleEditFormChange}
+                style={{ width: '100%' }}
+              >
+                <option value="pending">대기중</option>
+                <option value="confirmed">확정</option>
+                <option value="cancelled">취소됨</option>
+                <option value="completed">완료</option>
+              </Select>
+            </ModalRow>
+            <ModalRow>
+              <ModalLabel>예약일</ModalLabel>
+              <DateInput
+                type="date"
+                name="reservation_date"
+                value={editFormData.reservation_date}
+                onChange={handleEditFormChange}
+                style={{ width: '100%' }}
+              />
+            </ModalRow>
+            <ModalRow>
+              <ModalLabel>시간대</ModalLabel>
+              <Select 
+                name="time_slot" 
+                value={editFormData.time_slot} 
+                onChange={handleEditFormChange}
+                style={{ width: '100%' }}
+              >
+                <option value="">시간대 선택</option>
+                <option value="09:00">09:00</option>
+                <option value="10:00">10:00</option>
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+              </Select>
+            </ModalRow>
+            <ModalRow>
+              <ModalLabel>참여 인원</ModalLabel>
+              <Input
+                type="number"
+                name="participant_count"
+                value={editFormData.participant_count}
+                onChange={handleEditFormChange}
+                min={1}
+                max={100}
+                style={{ width: '100%' }}
+              />
             </ModalRow>
           </ModalContent>
         )}

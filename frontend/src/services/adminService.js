@@ -41,6 +41,11 @@ const adminService = {
     return api.get('/admin/reservations', { params });
   },
 
+  // 예약 정보 수정
+  updateReservation: async (id, data) => {
+    return api.put(`/admin/reservations/${id}`, data);
+  },
+
   // 전체 체험 기록 조회
   getAllExperiences: async (params = {}) => {
     return api.get('/admin/experiences', { params });

@@ -186,6 +186,46 @@ class AdminService {
   }
 
   /**
+   * 예약 상세 조회
+   * @param {number} id - 예약 ID
+   * @returns {Promise<Object>} 예약 정보
+   */
+  async getReservationById(id) {
+    const reservation = await Reservation.findById(id);
+    if (!reservation) {
+      return null;
+    }
+    return {
+      id: reservation.id,
+      user_id: reservation.user_id,
+      user_name: reservation.user_name,
+      username: reservation.username,
+      email: reservation.email,
+      phone: reservation.phone,
+      program_id: reservation.program_id,
+      program_name: reservation.program_name,
+      location: reservation.location,
+      duration_minutes: reservation.duration_minutes,
+      reservation_date: reservation.reservation_date,
+      time_slot: reservation.time_slot,
+      participant_count: reservation.participant_count,
+      status: reservation.status,
+      created_at: reservation.created_at,
+      updated_at: reservation.updated_at
+    };
+  }
+
+  /**
+   * 예약 정보 수정
+   * @param {number} id - 예약 ID
+   * @param {Object} updateData - 수정할 데이터
+   * @returns {Promise<boolean>} 수정 성공 여부
+   */
+  async updateReservation(id, updateData) {
+    return await Reservation.update(id, updateData);
+  }
+
+  /**
    * 전체 예약 목록 조회
    * @param {Object} options - 조회 옵션
    * @returns {Promise<Object>} 예약 목록

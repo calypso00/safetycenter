@@ -35,6 +35,7 @@ router.delete('/users/:id', adminController.deleteUser);
 
 // 예약 관리
 router.get('/reservations', adminController.getReservationList);
+router.put('/reservations/:id', adminController.updateReservation);
 
 // 체험 기록 관리
 router.get('/experiences', adminController.getExperienceList);
