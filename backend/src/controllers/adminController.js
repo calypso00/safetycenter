@@ -1,6 +1,6 @@
 const adminService = require('../services/adminService');
 const { successResponse, paginatedResponse } = require('../utils/response');
-const { BadRequestError, ConflictError } = require('../utils/errors');
+const { BadRequestError, ConflictError, NotFoundError } = require('../utils/errors');
 const db = require('../config/database');
 const { hashPassword } = require('../utils/password');
 
@@ -314,6 +314,110 @@ class AdminController {
         success_count: results.success.length,
         failed_count: results.failed.length,
         results
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 사용자 정보 수정
+   * PUT /api/admin/users/:id
+   */
+  async updateUser(req, res, next) {
+    try {
+      const userId = parseInt(req.params.id);
+      const { name, phone, email, role, is_active } = req.body;
+
+      // 사용자 존재 확인
+      const existingUser = await db.query(
+        'SELECT id, username FROM users WHERE id = ?',
+        [userId]
+      );
+      if (existingUser.length === 0) {
+        throw new NotFoundError('사용자를 찾을 수 없습니다.');
+      }
+
+      // 이메일 중복 확인 (본인 제외)
+      if (email) {
+        const existingEmail = await db.query(
+          'SELECT id FROM users WHERE email = ? AND id != ?',
+          [email, userId]
+        );
+        if (existingEmail.length > 0) {
+          throw new ConflictError('이미 사용 중인 이메일입니다.');
+        }
+      }
+
+      // 수정할 데이터 구성
+      const updateFields = [];
+      const updateValues = [];
+
+      if (name !== undefined) {
+        updateFields.push('name = ?');
+        updateValues.push(name);
+      }
+      if (phone !== undefined) {
+        updateFields.push('phone = ?');
+        updateValues.push(phone || null);
+      }
+      if (email !== undefined) {
+        updateFields.push('email = ?');
+        updateValues.push(email);
+      }
+      if (role !== undefined) {
+        updateFields.push('role = ?');
+        updateValues.push(role);
+      }
+      if (is_active !== undefined) {
+        updateFields.push('is_active = ?');
+        updateValues.push(is_active);
+      }
+
+      if (updateFields.length === 0) {
+        throw new BadRequestError('수정할 항목이 없습니다.');
+      }
+
+      updateValues.push(userId);
+
+      await db.query(
+        `UPDATE users SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
+        updateValues
+      );
+
+      return successResponse(res, {
+        message: '사용자 정보가 수정되었습니다.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 사용자 삭제 (비활성화)
+   * DELETE /api/admin/users/:id
+   */
+  async deleteUser(req, res, next) {
+    try {
+      const userId = parseInt(req.params.id);
+
+      // 사용자 존재 확인
+      const existingUser = await db.query(
+        'SELECT id FROM users WHERE id = ?',
+        [userId]
+      );
+      if (existingUser.length === 0) {
+        throw new NotFoundError('사용자를 찾을 수 없습니다.');
+      }
+
+      // 사용자 비활성화 (실제 삭제 대신)
+      await db.query(
+        'UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = ?',
+        [userId]
+      );
+
+      return successResponse(res, {
+        message: '사용자가 비활성화되었습니다.'
       });
     } catch (error) {
       next(error);

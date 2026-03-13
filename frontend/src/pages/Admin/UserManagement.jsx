@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import * as XLSX from 'xlsx';
 import { Layout } from '../../components/layout';
 import { Button, Card, Input, Modal, Loading } from '../../components/ui';
 import { useAuth } from '../../store/AuthContext';
@@ -202,6 +203,7 @@ const UserManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   
   const { isAdmin } = useAuth();
   const toast = useToast();
@@ -260,6 +262,26 @@ const UserManagement = () => {
       }
     } catch (error) {
       toast.error('사용자 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateUser = async (userId, userData) => {
+    try {
+      const response = await adminService.updateUser(userId, userData);
+      if (response.success) {
+        toast.success('사용자 정보가 수정되었습니다.');
+        setShowEditModal(false);
+        fetchUsers();
+      } else {
+        toast.error(response.message || '사용자 수정에 실패했습니다.');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || '사용자 수정에 실패했습니다.');
     }
   };
 
@@ -396,6 +418,9 @@ const UserManagement = () => {
                       <ActionButton onClick={() => handleViewUser(user.id)}>
                         상세
                       </ActionButton>
+                      <ActionButton onClick={() => handleEditUser(user)}>
+                        수정
+                      </ActionButton>
                       <ActionButton
                         $variant={user.is_active ? 'danger' : 'success'}
                         onClick={() => handleStatusChange(user.id, user.is_active)}
@@ -498,6 +523,14 @@ const UserManagement = () => {
         isOpen={showBulkModal}
         onClose={() => setShowBulkModal(false)}
         onSubmit={handleBulkRegister}
+      />
+
+      {/* 회원 정보 수정 모달 */}
+      <EditUserModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        user={selectedUser}
+        onSubmit={handleUpdateUser}
       />
     </Layout>
   );
@@ -643,7 +676,91 @@ const BulkRegisterModal = ({ isOpen, onClose, onSubmit }) => {
     { username: '', password: '', name: '', email: '', phone: '', role: 'user' }
   ]);
   const [loading, setLoading] = useState(false);
+  const [uploadMode, setUploadMode] = useState('manual'); // 'manual' or 'excel'
+  const [excelFileName, setExcelFileName] = useState('');
+  const fileInputRef = useRef(null);
   const toast = useToast();
+
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+    const fileName = file.name.toLowerCase();
+    const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+    
+    if (!isValidExtension) {
+      toast.error('엑셀 파일(.xlsx, .xls) 또는 CSV 파일만 업로드 가능합니다.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // 첫 번째 행은 헤더라고 가정하고 건너뜀
+        if (jsonData.length < 2) {
+          toast.error('엑셀 파일에 데이터가 없습니다.');
+          return;
+        }
+
+        // 헤더 매핑 (대소문자 구분 없이)
+        const headerRow = jsonData[0].map(h => String(h).toLowerCase().trim());
+        const usernameIdx = headerRow.findIndex(h => h.includes('아이디') || h === 'username' || h === 'id');
+        const passwordIdx = headerRow.findIndex(h => h.includes('비밀번호') || h === 'password' || h === 'pw');
+        const nameIdx = headerRow.findIndex(h => h.includes('이름') || h === 'name');
+        const emailIdx = headerRow.findIndex(h => h.includes('이메일') || h === 'email' || h === 'mail');
+        const phoneIdx = headerRow.findIndex(h => h.includes('연락처') || h.includes('전화') || h === 'phone' || h === 'tel');
+        const roleIdx = headerRow.findIndex(h => h.includes('권한') || h === 'role');
+
+        // 데이터 행 파싱
+        const parsedUsers = [];
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!row || row.length === 0) continue;
+
+          const user = {
+            username: usernameIdx >= 0 ? String(row[usernameIdx] || '').trim() : '',
+            password: passwordIdx >= 0 ? String(row[passwordIdx] || '').trim() : '',
+            name: nameIdx >= 0 ? String(row[nameIdx] || '').trim() : '',
+            email: emailIdx >= 0 ? String(row[emailIdx] || '').trim() : '',
+            phone: phoneIdx >= 0 ? String(row[phoneIdx] || '').trim() : '',
+            role: roleIdx >= 0 ? (String(row[roleIdx] || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user') : 'user'
+          };
+
+          // 필수 필드가 있는 행만 추가
+          if (user.username && user.password && user.name && user.email) {
+            parsedUsers.push(user);
+          }
+        }
+
+        if (parsedUsers.length === 0) {
+          toast.error('유효한 데이터를 찾을 수 없습니다. 필수 입력 항목: 아이디, 비밀번호, 이름, 이메일');
+          return;
+        }
+
+        if (parsedUsers.length > 100) {
+          toast.warning('최대 100명까지 등록 가능합니다. 처음 100명만 등록됩니다.');
+          setUsers(parsedUsers.slice(0, 100));
+        } else {
+          setUsers(parsedUsers);
+        }
+
+        setExcelFileName(file.name);
+        setUploadMode('excel');
+        toast.success(`${parsedUsers.length}명의 데이터를 불러왔습니다.`);
+      } catch (error) {
+        console.error('Excel parsing error:', error);
+        toast.error('엑셀 파일 파싱에 실패했습니다.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   const handleChange = (index, field, value) => {
     const newUsers = [...users];
@@ -689,7 +806,34 @@ const BulkRegisterModal = ({ isOpen, onClose, onSubmit }) => {
 
   const handleClose = () => {
     setUsers([{ username: '', password: '', name: '', email: '', phone: '', role: 'user' }]);
+    setUploadMode('manual');
+    setExcelFileName('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     onClose();
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      ['아이디', '비밀번호', '이름', '이메일', '연락처', '권한'],
+      ['example1', 'password123', '홍길동', 'hong@example.com', '010-1234-5678', 'user'],
+      ['example2', 'password456', '김철수', 'kim@example.com', '010-9876-5432', 'user']
+    ];
+    
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원등록양식');
+    XLSX.writeFile(wb, '회원등록양식.xlsx');
+  };
+
+  const clearExcelData = () => {
+    setUsers([{ username: '', password: '', name: '', email: '', phone: '', role: 'user' }]);
+    setUploadMode('manual');
+    setExcelFileName('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -697,6 +841,43 @@ const BulkRegisterModal = ({ isOpen, onClose, onSubmit }) => {
       <InfoText>
         한 번에 최대 100명까지 등록 가능합니다. 아이디, 비밀번호, 이름, 이메일은 필수 입력 항목입니다.
       </InfoText>
+      
+      {/* 엑셀 업로드 섹션 */}
+      <ExcelUploadSection>
+        <ExcelUploadTitle>엑셀 파일로 등록</ExcelUploadTitle>
+        <ExcelUploadInfo>
+          엑셀 파일(.xlsx, .xls) 또는 CSV 파일을 업로드하여 여러 회원을 한 번에 등록할 수 있습니다.
+          <br />
+          필수 컬럼: 아이디, 비밀번호, 이름, 이메일
+        </ExcelUploadInfo>
+        <ExcelUploadButtons>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleExcelUpload}
+            style={{ display: 'none' }}
+            id="excel-file-input"
+          />
+          <label htmlFor="excel-file-input">
+            <Button as="span" variant="secondary" style={{ cursor: 'pointer' }}>
+              📁 파일 선택
+            </Button>
+          </label>
+          <Button variant="secondary" onClick={downloadTemplate}>
+            📥 양식 다운로드
+          </Button>
+        </ExcelUploadButtons>
+        {excelFileName && (
+          <ExcelFileName>
+            📄 {excelFileName}
+            <ClearButton onClick={clearExcelData}>✕ 초기화</ClearButton>
+          </ExcelFileName>
+        )}
+      </ExcelUploadSection>
+
+      <Divider />
+
       <form onSubmit={handleSubmit}>
         <BulkTable>
           <thead>
@@ -908,4 +1089,209 @@ const AddButton = styled.button`
   &:hover {
     background-color: var(--border-color);
   }
+`;
+
+const ExcelUploadSection = styled.div`
+  margin-bottom: 1.5rem;
+`;
+
+const ExcelUploadTitle = styled.h4`
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+`;
+
+const ExcelUploadInfo = styled.p`
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+`;
+
+const ExcelUploadButtons = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+const ExcelFileName = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+`;
+
+const ClearButton = styled.button`
+  padding: 0.25rem 0.5rem;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  
+  &:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+  }
+`;
+
+const Divider = styled.hr`
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 1.5rem 0;
+`;
+
+// 회원 정보 수정 모달
+const EditUserModal = ({ isOpen, onClose, user, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'user',
+    is_active: true
+  });
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        role: user.role || 'user',
+        is_active: user.is_active !== false
+      });
+    }
+  }, [user]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // 필수 입력 검증
+    if (!formData.name || !formData.email) {
+      toast.error('이름과 이메일은 필수 입력 항목입니다.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onSubmit(user.id, formData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="회원 정보 수정" size="medium">
+      <form onSubmit={handleSubmit}>
+        <FormGroup>
+          <Label>아이디</Label>
+          <Input
+            type="text"
+            value={user.username || ''}
+            disabled
+            style={{ backgroundColor: 'var(--bg-secondary)' }}
+          />
+          <HelperText>아이디는 변경할 수 없습니다.</HelperText>
+        </FormGroup>
+        <FormGroup>
+          <Label>이름 *</Label>
+          <Input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="이름을 입력하세요"
+            required
+          />
+        </FormGroup>
+        <FormGroup>
+          <Label>이메일 *</Label>
+          <Input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="이메일을 입력하세요"
+            required
+          />
+        </FormGroup>
+        <FormGroup>
+          <Label>연락처</Label>
+          <Input
+            type="tel"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            placeholder="연락처를 입력하세요 (예: 010-1234-5678)"
+          />
+        </FormGroup>
+        <FormGroup>
+          <Label>권한</Label>
+          <Select name="role" value={formData.role} onChange={handleChange}>
+            <option value="user">사용자</option>
+            <option value="admin">관리자</option>
+          </Select>
+        </FormGroup>
+        <FormGroup>
+          <CheckboxLabel>
+            <input
+              type="checkbox"
+              name="is_active"
+              checked={formData.is_active}
+              onChange={handleChange}
+            />
+            <span>계정 활성화</span>
+          </CheckboxLabel>
+          <HelperText>체크 해제 시 해당 회원은 로그인할 수 없습니다.</HelperText>
+        </FormGroup>
+        <ButtonGroup>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            취소
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? '저장 중...' : '저장'}
+          </Button>
+        </ButtonGroup>
+      </form>
+    </Modal>
+  );
+};
+
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  
+  input {
+    width: 1rem;
+    height: 1rem;
+  }
+`;
+
+const HelperText = styled.p`
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
 `;

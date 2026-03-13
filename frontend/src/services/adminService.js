@@ -16,6 +16,16 @@ const adminService = {
     return api.put(`/admin/users/${id}/status`, { status });
   },
 
+  // 사용자 정보 수정
+  updateUser: async (id, userData) => {
+    return api.put(`/admin/users/${id}`, userData);
+  },
+
+  // 사용자 삭제 (비활성화)
+  deleteUser: async (id) => {
+    return api.delete(`/admin/users/${id}`);
+  },
+
   // 단일 사용자 생성 (회원 등록)
   createUser: async (userData) => {
     return api.post('/admin/users', userData);

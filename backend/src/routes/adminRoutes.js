@@ -30,6 +30,8 @@ router.get('/users', adminController.getUserList);
 router.get('/users/:id', adminController.getUserDetail);
 router.post('/users', adminController.createUser);
 router.post('/users/bulk', adminController.createBulkUsers);
+router.put('/users/:id', adminController.updateUser);
+router.delete('/users/:id', adminController.deleteUser);
 
 // 예약 관리
 router.get('/reservations', adminController.getReservationList);

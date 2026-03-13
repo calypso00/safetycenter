@@ -31,11 +31,44 @@ class AdminService {
     // 전체 프로그램 수
     const programs = await Program.findAllActive();
 
+    // 전체 예약 통계 (Dashboard에서 필요로 하는 필드)
+    const allReservationStats = await Reservation.getStats('1970-01-01', todayStr);
+
+    // 최근 활동 (체험 기록 + 예약에서 가져옴)
+    const recentExperiences = await ExperienceLog.findAll({ page: 1, limit: 5 });
+    const recentReservations = await Reservation.findAll({ page: 1, limit: 5 });
+
+    // 최근 활동 데이터 구성
+    const recentActivities = [
+      ...recentExperiences.logs.map(log => ({
+        action: '체험入场',
+        details: `${log.user_name || log.username}님이 ${log.program_name} 프로그램 이용`,
+        created_at: log.entry_time
+      })),
+      ...recentReservations.reservations.map(res => ({
+        action: '예약',
+        details: `${res.user_name || res.username}님이 ${res.program_name} 예약 (${res.status})`,
+        created_at: res.created_at
+      }))
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+
     // 최근 7일 통계
     const weeklyStats = await ExperienceLog.getStats(weekAgoStr, todayStr);
     const dailyStats = await ExperienceLog.getDailyStats(weekAgoStr, todayStr);
 
     return {
+      // Dashboard.jsx에서 필요로 하는 필드명
+      totalUsers: totalUsers,
+      todayVisitors: todayVisitors,
+      todayReservations: todayReservations.total_count || 0,
+      pendingReservations: allReservationStats.pending_count || 0,
+      confirmedReservations: allReservationStats.confirmed_count || 0,
+      completedReservations: allReservationStats.completed_count || 0,
+      cancelledReservations: allReservationStats.cancelled_count || 0,
+      activeVisitors: activeVisitors,
+      recentActivities: recentActivities,
+      
+      // 기존 구조도 유지 (하위 호환성)
       today: {
         visitors: todayVisitors,
         active_visitors: activeVisitors,
