@@ -12,6 +12,7 @@ import Reservation from './pages/Reservation';
 import MyPage from './pages/MyPage';
 import Board from './pages/Board';
 import PostDetail from './pages/PostDetail';
+import BoardWrite from './pages/BoardWrite';
 import Programs from './pages/Programs';
 import Kiosk from './pages/Kiosk';
 import Dashboard from './pages/Admin/Dashboard';
@@ -70,6 +71,14 @@ function AppRoutes() {
       <Route path="/programs/:id" element={<Programs />} />
       <Route path="/board" element={<Board />} />
       <Route path="/board/:id" element={<PostDetail />} />
+      <Route
+        path="/board/write"
+        element={
+          <ProtectedRoute>
+            <BoardWrite />
+          </ProtectedRoute>
+        }
+      />
       
       {/* Protected Routes */}
       <Route

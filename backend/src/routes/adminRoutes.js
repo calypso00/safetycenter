@@ -28,6 +28,8 @@ router.get('/statistics/programs', adminController.getProgramStats);
 // 사용자 관리
 router.get('/users', adminController.getUserList);
 router.get('/users/:id', adminController.getUserDetail);
+router.post('/users', adminController.createUser);
+router.post('/users/bulk', adminController.createBulkUsers);
 
 // 예약 관리
 router.get('/reservations', adminController.getReservationList);

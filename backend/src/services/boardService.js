@@ -47,6 +47,9 @@ class BoardService {
     // 조회수 증가
     await BoardPost.incrementViewCount(postId);
 
+    // 댓글 목록 조회
+    const { comments } = await this.getComments(postId);
+
     return {
       id: post.id,
       user_id: post.user_id,
@@ -58,7 +61,8 @@ class BoardService {
       status: post.status,
       view_count: post.view_count + 1,
       created_at: post.created_at,
-      updated_at: post.updated_at
+      updated_at: post.updated_at,
+      comments: comments // 댓글 목록 추가
     };
   }
 

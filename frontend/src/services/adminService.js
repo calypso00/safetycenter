@@ -16,6 +16,16 @@ const adminService = {
     return api.put(`/admin/users/${id}/status`, { status });
   },
 
+  // 단일 사용자 생성 (회원 등록)
+  createUser: async (userData) => {
+    return api.post('/admin/users', userData);
+  },
+
+  // 단체 사용자 생성 (회원 등록)
+  createBulkUsers: async (users) => {
+    return api.post('/admin/users/bulk', { users });
+  },
+
   // 전체 예약 조회
   getAllReservations: async (params = {}) => {
     return api.get('/admin/reservations', { params });
