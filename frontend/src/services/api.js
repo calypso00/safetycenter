@@ -3,7 +3,7 @@ import axios from 'axios';
 // 동적으로 API URL 설정
 // 환경 변수가 있으면 사용, 없으면 현재 호스트 기반으로 URL 생성
 const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
   if (envUrl) {
     return envUrl;
   }

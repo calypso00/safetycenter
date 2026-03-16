@@ -41,7 +41,7 @@ class AdminService {
     // 최근 활동 데이터 구성
     const recentActivities = [
       ...recentExperiences.logs.map(log => ({
-        action: '체험入场',
+        action: '체험',
         details: `${log.user_name || log.username}님이 ${log.program_name} 프로그램 이용`,
         created_at: log.entry_time
       })),
