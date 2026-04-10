@@ -31,19 +31,22 @@ class AdminService {
     // 전체 프로그램 수
     const programs = await Program.findAllActive();
 
-    // 전체 예약 통계 (Dashboard에서 필요로 하는 필드)
-    const allReservationStats = await Reservation.getStats('1970-01-01', todayStr);
+    // 전체 예약 통계 (Dashboard에서 필요로 하는 필드) - 날짜 필터 없이 모든 예약 조회
+    const allReservationStats = await Reservation.getStats();
 
     // 최근 활동 (체험 기록 + 예약에서 가져옴)
     const recentExperiences = await ExperienceLog.findAll({ page: 1, limit: 5 });
     const recentReservations = await Reservation.findAll({ page: 1, limit: 5 });
 
     // 최근 활동 데이터 구성
+    console.log('Recent experiences:', recentExperiences.logs.slice(0, 2).map(log => ({ check_in_time: log.check_in_time, entry_time: log.entry_time, created_at: log.created_at })));
+    console.log('Recent reservations:', recentReservations.reservations.slice(0, 2).map(res => ({ created_at: res.created_at })));
+
     const recentActivities = [
       ...recentExperiences.logs.map(log => ({
         action: '체험',
         details: `${log.user_name || log.username}님이 ${log.program_name} 프로그램 이용`,
-        created_at: log.entry_time
+        created_at: log.check_in_time // entry_time에서 check_in_time으로 수정
       })),
       ...recentReservations.reservations.map(res => ({
         action: '예약',
@@ -51,6 +54,8 @@ class AdminService {
         created_at: res.created_at
       }))
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+
+    console.log('Recent activities:', recentActivities.slice(0, 2));
 
     // 최근 7일 통계
     const weeklyStats = await ExperienceLog.getStats(weekAgoStr, todayStr);
@@ -60,11 +65,11 @@ class AdminService {
       // Dashboard.jsx에서 필요로 하는 필드명
       totalUsers: totalUsers,
       todayVisitors: todayVisitors,
-      todayReservations: todayReservations.total_count || 0,
-      pendingReservations: allReservationStats.pending_count || 0,
-      confirmedReservations: allReservationStats.confirmed_count || 0,
-      completedReservations: allReservationStats.completed_count || 0,
-      cancelledReservations: allReservationStats.cancelled_count || 0,
+      todayReservations: parseInt(todayReservations.total_count) || 0,
+      pendingReservations: parseInt(allReservationStats.pending_count) || 0,
+      confirmedReservations: parseInt(allReservationStats.confirmed_count) || 0,
+      completedReservations: parseInt(allReservationStats.completed_count) || 0,
+      cancelledReservations: parseInt(allReservationStats.cancelled_count) || 0,
       activeVisitors: activeVisitors,
       recentActivities: recentActivities,
       
@@ -105,19 +110,19 @@ class AdminService {
         end_date: endDate
       },
       experience: {
-        total_visits: experienceStats.total_visits || 0,
-        unique_visitors: experienceStats.unique_visitors || 0,
+        total_visits: parseInt(experienceStats.total_visits) || 0,
+        unique_visitors: parseInt(experienceStats.unique_visitors) || 0,
         avg_duration_seconds: Math.round(experienceStats.avg_duration) || 0,
-        face_entry_count: experienceStats.face_entry_count || 0,
-        manual_entry_count: experienceStats.manual_entry_count || 0
+        face_entry_count: parseInt(experienceStats.face_entry_count) || 0,
+        manual_entry_count: parseInt(experienceStats.manual_entry_count) || 0
       },
       reservation: {
-        total_count: reservationStats.total_count || 0,
-        total_participants: reservationStats.total_participants || 0,
-        pending_count: reservationStats.pending_count || 0,
-        confirmed_count: reservationStats.confirmed_count || 0,
-        cancelled_count: reservationStats.cancelled_count || 0,
-        completed_count: reservationStats.completed_count || 0
+        total_count: parseInt(reservationStats.total_count) || 0,
+        total_participants: parseInt(reservationStats.total_participants) || 0,
+        pending_count: parseInt(reservationStats.pending_count) || 0,
+        confirmed_count: parseInt(reservationStats.confirmed_count) || 0,
+        cancelled_count: parseInt(reservationStats.cancelled_count) || 0,
+        completed_count: parseInt(reservationStats.completed_count) || 0
       },
       daily_stats: dailyStats,
       program_stats: programStats
@@ -236,22 +241,37 @@ class AdminService {
     const { reservations, total } = await Reservation.findAll({ page, limit, status, date, programId });
     
     return {
-      reservations: reservations.map(reservation => ({
-        id: reservation.id,
-        user_id: reservation.user_id,
-        user_name: reservation.user_name,
-        username: reservation.username,
-        email: reservation.email,
-        phone: reservation.phone,
-        program_id: reservation.program_id,
-        program_name: reservation.program_name,
-        location: reservation.location,
-        reservation_date: reservation.reservation_date,
-        time_slot: reservation.time_slot,
-        participant_count: reservation.participant_count,
-        status: reservation.status,
-        created_at: reservation.created_at
-      })),
+      reservations: reservations.map(reservation => {
+        // 날짜 변환: MySQL DATE 타입을 문자열로 명시적 변환
+        let formattedDate = reservation.reservation_date;
+        if (reservation.reservation_date) {
+          if (reservation.reservation_date instanceof Date) {
+            const year = reservation.reservation_date.getFullYear();
+            const month = String(reservation.reservation_date.getMonth() + 1).padStart(2, '0');
+            const day = String(reservation.reservation_date.getDate()).padStart(2, '0');
+            formattedDate = `${year}-${month}-${day}`;
+          } else if (typeof reservation.reservation_date === 'string') {
+            formattedDate = reservation.reservation_date.split('T')[0];
+          }
+        }
+        
+        return {
+          id: reservation.id,
+          user_id: reservation.user_id,
+          user_name: reservation.user_name,
+          username: reservation.username,
+          email: reservation.email,
+          phone: reservation.phone,
+          program_id: reservation.program_id,
+          program_name: reservation.program_name,
+          location: reservation.location,
+          reservation_date: formattedDate,
+          time_slot: reservation.time_slot,
+          participant_count: reservation.participant_count,
+          status: reservation.status,
+          created_at: reservation.created_at
+        };
+      }),
       total,
       page,
       limit
@@ -277,11 +297,12 @@ class AdminService {
         program_id: log.program_id,
         program_name: log.program_name,
         location: log.location,
-        entry_time: log.entry_time,
-        exit_time: log.exit_time,
-        duration_seconds: log.duration_seconds,
+        entry_time: log.check_in_time,
+        exit_time: log.check_out_time,
+        duration_seconds: log.duration,
         entry_method: log.entry_method,
-        notes: log.notes
+        notes: log.notes,
+        status: log.check_out_time ? 'completed' : 'active'
       })),
       total,
       page,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import * as XLSX from 'xlsx';
 import { Layout } from '../../components/layout';
@@ -44,6 +45,30 @@ const SidebarLink = styled.a`
   border-left: 3px solid ${({ $active }) => $active ? 'var(--primary-color)' : 'transparent'};
   transition: var(--transition);
   cursor: pointer;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const SidebarDivider = styled.div`
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 1rem 1.5rem;
+`;
+
+const SidebarButton = styled.button`
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  background-color: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
   
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
@@ -320,6 +345,19 @@ const UserManagement = () => {
     }
   };
 
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      navigate('/');
+    }
+  };
+
   if (loading && users.length === 0) {
     return (
       <Layout hideHeader hideFooter>
@@ -333,6 +371,11 @@ const UserManagement = () => {
               <SidebarLink href="/admin/programs">🎯 프로그램 관리</SidebarLink>
               <SidebarLink href="/admin/board">📝 게시판 관리</SidebarLink>
               <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+            </SidebarNav>
+            <SidebarDivider />
+            <SidebarNav>
+              <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+              <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
             </SidebarNav>
           </Sidebar>
           <MainContent>
@@ -355,6 +398,11 @@ const UserManagement = () => {
             <SidebarLink href="/admin/programs">🎯 프로그램 관리</SidebarLink>
             <SidebarLink href="/admin/board">📝 게시판 관리</SidebarLink>
             <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+          </SidebarNav>
+          <SidebarDivider />
+          <SidebarNav>
+            <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+            <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
           </SidebarNav>
         </Sidebar>
         <MainContent>

@@ -165,8 +165,8 @@ const FaceRecognitionPanel = ({ onEntry, onExit }) => {
     const checkStatus = async () => {
       try {
         const response = await faceService.getModuleStatus();
-        // API 인터셉터에서 이미 response.data를 반환하므로 response直接使用
-        setModuleStatus(response);
+        // API 인터셉터에서 response.data를 반환하므로, successResponse 래핑 시 실제 데이터는 response.data에 있음
+        setModuleStatus(response.data || response);
       } catch (error) {
         console.error('Failed to check module status:', error);
         setModuleStatus({ status: 'offline' });
@@ -213,7 +213,7 @@ const FaceRecognitionPanel = ({ onEntry, onExit }) => {
       console.error('Face verification error:', error);
       setStatus('error');
       setResult({
-        message: error.response?.data?.message || '인식 오류가 발생했습니다.'
+        message: error.message || error.response?.data?.message || '인식 오류가 발생했습니다.'
       });
     } finally {
       // Delay before allowing next capture

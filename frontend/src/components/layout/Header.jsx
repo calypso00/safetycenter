@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../../store/AuthContext';
@@ -67,6 +68,10 @@ const AuthButtons = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const UserInfo = styled.div`
@@ -80,14 +85,77 @@ const UserName = styled.span`
   color: var(--text-secondary);
 `;
 
+const HamburgerButton = styled.button`
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  line-height: 1;
+
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+`;
+
+const MobileMenu = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: ${({ $open }) => ($open ? 'flex' : 'none')};
+    flex-direction: column;
+    background-color: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    padding: 1rem;
+    gap: 0.75rem;
+    position: absolute;
+    top: 64px;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const MobileNavLink = styled(Link)`
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition);
+
+  &:hover {
+    color: var(--primary-color);
+  }
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+`;
+
+const MobileAuthButtons = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+`;
+
 const Header = () => {
   const { user, isAuthenticated, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
+    setMenuOpen(false);
     navigate('/');
   };
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <HeaderContainer>
@@ -129,7 +197,46 @@ const Header = () => {
             </>
           )}
         </AuthButtons>
+
+        <HamburgerButton
+          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-label="메뉴 열기"
+        >
+          {menuOpen ? '✕' : '☰'}
+        </HamburgerButton>
       </HeaderContent>
+
+      <MobileMenu $open={menuOpen}>
+        <MobileNavLink to="/" onClick={closeMenu}>홈</MobileNavLink>
+        <MobileNavLink to="/programs" onClick={closeMenu}>프로그램</MobileNavLink>
+        <MobileNavLink to="/reservation" onClick={closeMenu}>예약하기</MobileNavLink>
+        <MobileNavLink to="/board" onClick={closeMenu}>게시판</MobileNavLink>
+        {isAuthenticated && (
+          <MobileNavLink to="/mypage" onClick={closeMenu}>마이페이지</MobileNavLink>
+        )}
+        {isAdmin() && (
+          <MobileNavLink to="/admin" onClick={closeMenu}>관리자</MobileNavLink>
+        )}
+        <MobileAuthButtons>
+          {isAuthenticated ? (
+            <>
+              <UserName>{user?.name}님</UserName>
+              <Button variant="secondary" size="small" onClick={handleLogout}>
+                로그아웃
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="small" onClick={() => { navigate('/login'); closeMenu(); }}>
+                로그인
+              </Button>
+              <Button variant="primary" size="small" onClick={() => { navigate('/register'); closeMenu(); }}>
+                회원가입
+              </Button>
+            </>
+          )}
+        </MobileAuthButtons>
+      </MobileMenu>
     </HeaderContainer>
   );
 };

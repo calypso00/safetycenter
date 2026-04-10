@@ -31,8 +31,8 @@ class FaceService {
     try {
       const response = await this.httpClient.get('/health');
       return {
-        status: 'online',
-        ...response.data
+        ...response.data,
+        status: 'online'  // 연결 성공 시 항상 'online'으로 고정
       };
     } catch (error) {
       return {
@@ -150,8 +150,15 @@ class FaceService {
         }
       };
     } catch (error) {
-      if (error instanceof BadRequestError || error instanceof NotFoundError) {
+      // 이미 처리된 에러는 그대로 throw (statusCode로 확인)
+      if (error.statusCode === 400 || error.statusCode === 404) {
         throw error;
+      }
+      
+      // Flask 서버 HTTP 에러 응답 (axios 에러)
+      const httpStatus = error.response?.status;
+      if (httpStatus === 400 || httpStatus === 404) {
+        throw new NotFoundError(error.response?.data?.message || '얼굴 인증에 실패했습니다.');
       }
       
       // Flask 서버 통신 오류

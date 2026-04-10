@@ -74,10 +74,11 @@ class BoardPost {
     );
     const total = countResult[0].total;
 
-    // 목록 조회
+    // 목록 조회 (댓글 개수 포함)
     // LIMIT/OFFSET은 prepared statement에서 정수 타입으로 처리되므로 SQL에 직접 포함
     const posts = await db.query(
-      `SELECT p.*, u.name as author_name
+      `SELECT p.id, p.user_id, p.title, p.content, p.category, p.status, p.views as view_count, p.created_at, p.updated_at, u.name as author_name,
+        (SELECT COUNT(*) FROM board_comments c WHERE c.post_id = p.id) as comment_count
        FROM board_posts p
        JOIN users u ON p.user_id = u.id
        ${whereClause}
@@ -142,7 +143,7 @@ class BoardPost {
    */
   static async incrementViewCount(id) {
     await db.query(
-      'UPDATE board_posts SET view_count = view_count + 1 WHERE id = ?',
+      'UPDATE board_posts SET views = views + 1 WHERE id = ?',
       [id]
     );
   }

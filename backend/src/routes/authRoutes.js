@@ -49,7 +49,7 @@ router.post('/logout', authenticate, authController.logout);
 // 현재 사용자 정보 (인증 필요)
 router.get('/me', authenticate, authController.getCurrentUser);
 
-// 토큰 갱신 (인증 필요)
-router.post('/refresh', authenticate, authController.refreshToken);
+// 토큰 갱신 (인증 불필요 - refresh token으로 검증)
+router.post('/refresh', authController.refreshToken);
 
 module.exports = router;

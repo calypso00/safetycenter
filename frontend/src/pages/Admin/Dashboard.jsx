@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { Layout } from '../../components/layout';
@@ -43,6 +43,30 @@ const SidebarLink = styled(Link)`
   color: ${({ $active }) => $active ? 'white' : '#94a3b8'};
   background-color: ${({ $active }) => $active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
   border-left: 3px solid ${({ $active }) => $active ? 'var(--primary-color)' : 'transparent'};
+  transition: var(--transition);
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const SidebarDivider = styled.div`
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 1rem 1.5rem;
+`;
+
+const SidebarButton = styled.button`
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  background-color: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
   transition: var(--transition);
   
   &:hover {
@@ -120,7 +144,18 @@ const ChartTitle = styled.h3`
 const COLORS = ['#2563eb', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const AdminLayout = ({ children, activeMenu }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      navigate('/');
+    }
+  };
   
   return (
     <PageContainer>
@@ -145,6 +180,15 @@ const AdminLayout = ({ children, activeMenu }) => {
           <SidebarLink to="/admin/statistics" $active={activeMenu === 'statistics'}>
             📈 통계
           </SidebarLink>
+        </SidebarNav>
+        <SidebarDivider />
+        <SidebarNav>
+          <SidebarLink to="/" $active={false}>
+            🏠 홈페이지로 이동
+          </SidebarLink>
+          <SidebarButton onClick={handleLogout}>
+            🚪 로그아웃
+          </SidebarButton>
         </SidebarNav>
       </Sidebar>
       <MainContent>{children}</MainContent>
@@ -243,8 +287,8 @@ const Dashboard = () => {
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="visitors" stroke="#2563eb" name="방문자" />
-              <Line type="monotone" dataKey="reservations" stroke="#22c55e" name="예약" />
+              <Line type="monotone" dataKey="visit_count" stroke="#2563eb" name="방문자" />
+              <Line type="monotone" dataKey="unique_visitors" stroke="#22c55e" name="고유 방문자" />
             </LineChart>
           </ChartCard>
 
@@ -252,11 +296,11 @@ const Dashboard = () => {
             <ChartTitle>프로그램별 이용 현황</ChartTitle>
             <BarChart width={400} height={250} data={programStats}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <XAxis dataKey="program_name" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="count" fill="#2563eb" name="이용 횟수" />
+              <Bar dataKey="visit_count" fill="#2563eb" name="이용 횟수" />
             </BarChart>
           </ChartCard>
         </ChartGrid>
@@ -301,7 +345,7 @@ const Dashboard = () => {
                 >
                   <div style={{ fontWeight: 500 }}>{activity.action}</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                    {activity.details} - {new Date(activity.created_at).toLocaleString()}
+                    {activity.details} - {activity.created_at ? new Date(activity.created_at).toLocaleString() : '날짜 정보 없음'}
                   </div>
                 </div>
               ))}

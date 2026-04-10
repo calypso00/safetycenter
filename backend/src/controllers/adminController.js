@@ -1,4 +1,5 @@
 const adminService = require('../services/adminService');
+const AdminLog = require('../models/AdminLog');
 const { successResponse, paginatedResponse } = require('../utils/response');
 const { BadRequestError, ConflictError, NotFoundError } = require('../utils/errors');
 const db = require('../config/database');
@@ -156,6 +157,35 @@ class AdminController {
 
       await adminService.updateReservation(reservationId, updateData);
 
+      // 수정 내용 요약
+      const changes = [];
+      if (status !== undefined) {
+        const statusLabels = {
+          pending: '대기중',
+          confirmed: '확정',
+          cancelled: '취소',
+          completed: '완료'
+        };
+        changes.push(`상태: ${statusLabels[status] || status}`);
+      }
+      if (reservation_date !== undefined) changes.push(`예약일: ${reservation_date}`);
+      if (time_slot !== undefined) changes.push(`시간: ${time_slot}`);
+      if (participant_count !== undefined) changes.push(`인원: ${participant_count}`);
+
+      // 예약 정보 확인
+      const reservation = await adminService.getReservationById(reservationId);
+      
+      // 관리자 로그 기록
+      await AdminLog.create({
+        adminId: req.user.id,
+        action: status === 'cancelled' ? AdminLog.ACTIONS.RESERVATION_CANCEL :
+                status === 'confirmed' ? AdminLog.ACTIONS.RESERVATION_CONFIRM :
+                AdminLog.ACTIONS.RESERVATION_UPDATE,
+        targetType: AdminLog.TARGET_TYPES.RESERVATION,
+        targetId: reservationId,
+        details: `예약 수정: ID ${reservationId}, ${changes.join(', ')}`
+      });
+
       return successResponse(res, {
         message: '예약 정보가 수정되었습니다.'
       });
@@ -197,10 +227,10 @@ class AdminController {
    */
   async getDailyStats(req, res, next) {
     try {
-      const { start_date, end_date } = req.query;
+      const { start_date, end_date, days } = req.query;
       
       const endDate = end_date || new Date().toISOString().split('T')[0];
-      const startDate = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = start_date || new Date(Date.now() - (days || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       const stats = await adminService.getDailyStats(startDate, endDate);
       return successResponse(res, stats);
@@ -215,10 +245,10 @@ class AdminController {
    */
   async getProgramStats(req, res, next) {
     try {
-      const { start_date, end_date } = req.query;
+      const { start_date, end_date, days } = req.query;
       
       const endDate = end_date || new Date().toISOString().split('T')[0];
-      const startDate = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = start_date || new Date(Date.now() - (days || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       const stats = await adminService.getProgramStats(startDate, endDate);
       return successResponse(res, stats);
@@ -267,6 +297,15 @@ class AdminController {
          VALUES (?, ?, ?, ?, ?, ?)`,
         [username, passwordHash, name, phone || null, email, role]
       );
+
+      // 관리자 로그 기록
+      await AdminLog.create({
+        adminId: req.user.id,
+        action: AdminLog.ACTIONS.USER_CREATE,
+        targetType: AdminLog.TARGET_TYPES.USER,
+        targetId: result.insertId,
+        details: `사용자 생성: ${username}, 이름: ${name}, 역할: ${role}`
+      });
 
       return successResponse(res, {
         id: result.insertId,
@@ -366,6 +405,15 @@ class AdminController {
         }
       }
 
+      // 관리자 로그 기록
+      await AdminLog.create({
+        adminId: req.user.id,
+        action: AdminLog.ACTIONS.USER_BULK_CREATE,
+        targetType: AdminLog.TARGET_TYPES.USER,
+        targetId: null,
+        details: `일괄 사용자 생성: 총 ${users.length}명, 성공 ${results.success.length}명, 실패 ${results.failed.length}명`
+      });
+
       return successResponse(res, {
         total: users.length,
         success_count: results.success.length,
@@ -442,6 +490,23 @@ class AdminController {
         updateValues
       );
 
+      // 수정 내용 요약
+      const changes = [];
+      if (name !== undefined) changes.push(`이름: ${name}`);
+      if (phone !== undefined) changes.push(`연락처: ${phone}`);
+      if (email !== undefined) changes.push(`이메일: ${email}`);
+      if (role !== undefined) changes.push(`역할: ${role}`);
+      if (is_active !== undefined) changes.push(`활성상태: ${is_active ? '활성' : '비활성'}`);
+
+      // 관리자 로그 기록
+      await AdminLog.create({
+        adminId: req.user.id,
+        action: AdminLog.ACTIONS.USER_UPDATE,
+        targetType: AdminLog.TARGET_TYPES.USER,
+        targetId: userId,
+        details: `사용자 정보 수정: ${existingUser[0].username}, 수정 항목: ${changes.join(', ')}`
+      });
+
       return successResponse(res, {
         message: '사용자 정보가 수정되었습니다.'
       });
@@ -473,9 +538,77 @@ class AdminController {
         [userId]
       );
 
+      // 관리자 로그 기록
+      await AdminLog.create({
+        adminId: req.user.id,
+        action: AdminLog.ACTIONS.USER_DELETE,
+        targetType: AdminLog.TARGET_TYPES.USER,
+        targetId: userId,
+        details: `사용자 비활성화: ID ${userId}`
+      });
+
       return successResponse(res, {
         message: '사용자가 비활성화되었습니다.'
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 관리자 로그 목록
+   * GET /api/admin/logs
+   */
+  async getLogList(req, res, next) {
+    try {
+      const { page, limit, admin_id, action, target_type, start_date, end_date } = req.query;
+      const result = await AdminLog.findAll({
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 20,
+        adminId: admin_id ? parseInt(admin_id) : null,
+        action,
+        targetType: target_type,
+        startDate: start_date,
+        endDate: end_date
+      });
+      
+      return paginatedResponse(
+        res,
+        result.logs,
+        result.page,
+        result.limit,
+        result.total
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 관리자 로그 상세
+   * GET /api/admin/logs/:id
+   */
+  async getLogDetail(req, res, next) {
+    try {
+      const log = await AdminLog.findById(req.params.id);
+      if (!log) {
+        throw new NotFoundError('로그를 찾을 수 없습니다.');
+      }
+      return successResponse(res, log);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * 관리자 로그 통계
+   * GET /api/admin/logs/stats
+   */
+  async getLogStats(req, res, next) {
+    try {
+      const { start_date, end_date } = req.query;
+      const stats = await AdminLog.getStats(start_date, end_date);
+      return successResponse(res, stats);
     } catch (error) {
       next(error);
     }

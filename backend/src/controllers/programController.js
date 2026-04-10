@@ -11,11 +11,12 @@ class ProgramController {
    */
   async getPrograms(req, res, next) {
     try {
-      const { page, limit, is_active } = req.query;
+      const { page, limit, is_active, search } = req.query;
       const result = await programService.getPrograms({
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 10,
-        isActive: is_active === 'false' ? false : is_active === 'true' ? true : true
+        isActive: is_active === 'false' ? false : is_active === 'true' ? true : is_active === 'null' || is_active === '' ? null : true,
+        search: search || ''
       });
       
       return paginatedResponse(
@@ -63,7 +64,14 @@ class ProgramController {
    */
   async createProgram(req, res, next) {
     try {
-      const program = await programService.createProgram(req.body);
+      const programData = { ...req.body };
+      
+      // 업로드된 이미지가 있으면 경로 추가
+      if (req.file) {
+        programData.thumbnail = `/uploads/programs/${req.file.filename}`;
+      }
+      
+      const program = await programService.createProgram(programData);
       return createdResponse(res, program, '프로그램이 생성되었습니다.');
     } catch (error) {
       next(error);
@@ -76,7 +84,14 @@ class ProgramController {
    */
   async updateProgram(req, res, next) {
     try {
-      const program = await programService.updateProgram(req.params.id, req.body);
+      const updateData = { ...req.body };
+      
+      // 업로드된 이미지가 있으면 경로 추가
+      if (req.file) {
+        updateData.thumbnail = `/uploads/programs/${req.file.filename}`;
+      }
+      
+      const program = await programService.updateProgram(req.params.id, updateData);
       return successResponse(res, program, '프로그램이 수정되었습니다.');
     } catch (error) {
       next(error);

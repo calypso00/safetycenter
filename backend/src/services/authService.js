@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const { hashPassword, comparePassword } = require('../utils/password');
-const { generateToken, generateRefreshToken } = require('../utils/jwt');
+const { generateToken, generateRefreshToken, verifyToken } = require('../utils/jwt');
 const { ConflictError, UnauthorizedError, BadRequestError } = require('../utils/errors');
 
 /**
@@ -129,20 +129,34 @@ class AuthService {
 
   /**
    * 토큰 갱신
-   * @param {number} userId - 사용자 ID
-   * @param {string} username - 사용자명
+   * @param {string} refreshToken - 리프레시 토큰
    * @returns {Promise<Object>} 새 토큰
    */
-  async refreshToken(userId, username) {
+  async refreshToken(refreshToken) {
+    // 리프레시 토큰 검증
+    let decoded;
+    try {
+      decoded = verifyToken(refreshToken);
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedError('리프레시 토큰이 만료되었습니다. 다시 로그인해주세요.');
+      }
+      throw new UnauthorizedError('유효하지 않은 리프레시 토큰입니다.');
+    }
+
+    const { userId, username } = decoded;
+    
+    // 사용자 확인
     const user = await User.findById(userId);
     if (!user || !user.is_active) {
       throw new UnauthorizedError('유효하지 않은 사용자입니다.');
     }
 
+    // 새 토큰 생성
     const token = generateToken({ userId, username });
-    const refreshToken = generateRefreshToken({ userId, username });
+    const newRefreshToken = generateRefreshToken({ userId, username });
 
-    return { accessToken: token, refreshToken };
+    return { accessToken: token, refreshToken: newRefreshToken };
   }
 }
 

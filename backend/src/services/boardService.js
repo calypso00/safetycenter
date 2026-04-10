@@ -24,6 +24,7 @@ class BoardService {
         category: post.category,
         status: post.status,
         view_count: post.view_count,
+        comment_count: post.comment_count || 0,
         created_at: post.created_at,
         updated_at: post.updated_at
       })),
@@ -59,7 +60,7 @@ class BoardService {
       content: post.content,
       category: post.category,
       status: post.status,
-      view_count: post.view_count + 1,
+      view_count: (post.views || 0) + 1,
       created_at: post.created_at,
       updated_at: post.updated_at,
       comments: comments // 댓글 목록 추가
@@ -94,16 +95,17 @@ class BoardService {
    * @param {number} postId - 게시글 ID
    * @param {number} userId - 사용자 ID
    * @param {Object} updateData - 수정할 데이터
+   * @param {string} userRole - 사용자 역할 (admin인 경우 모든 글 수정 가능)
    * @returns {Promise<Object>} 수정된 게시글
    */
-  async updatePost(postId, userId, updateData) {
+  async updatePost(postId, userId, updateData, userRole = 'user') {
     const post = await BoardPost.findById(postId);
     if (!post) {
       throw new NotFoundError('게시글을 찾을 수 없습니다.');
     }
 
-    // 소유자 확인
-    if (post.user_id !== userId) {
+    // 소유자 확인 (관리자는 모든 글 수정 가능)
+    if (post.user_id !== userId && userRole !== 'admin') {
       throw new ForbiddenError('수정 권한이 없습니다.');
     }
 
@@ -116,16 +118,17 @@ class BoardService {
    * 게시글 삭제
    * @param {number} postId - 게시글 ID
    * @param {number} userId - 사용자 ID
+   * @param {string} userRole - 사용자 역할 (admin인 경우 모든 글 삭제 가능)
    * @returns {Promise<boolean>} 삭제 성공 여부
    */
-  async deletePost(postId, userId) {
+  async deletePost(postId, userId, userRole = 'user') {
     const post = await BoardPost.findById(postId);
     if (!post) {
       throw new NotFoundError('게시글을 찾을 수 없습니다.');
     }
 
-    // 소유자 확인
-    if (post.user_id !== userId) {
+    // 소유자 확인 (관리자는 모든 글 삭제 가능)
+    if (post.user_id !== userId && userRole !== 'admin') {
       throw new ForbiddenError('삭제 권한이 없습니다.');
     }
 

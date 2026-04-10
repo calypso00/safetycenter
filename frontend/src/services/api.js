@@ -40,6 +40,20 @@ api.interceptors.request.use(
   }
 );
 
+// 토큰 만료 여부 확인 헬퍼 함수
+const isTokenExpiredError = (error) => {
+  if (!error.response) return false;
+  
+  const status = error.response.status;
+  const message = error.response.data?.message || '';
+  
+  // 401 상태 코드 또는 토큰 만료 관련 메시지
+  return status === 401 || 
+         message.includes('토큰이 만료') || 
+         message.includes('만료된 토큰') ||
+         message.includes('TokenExpiredError');
+};
+
 // 응답 인터셉터 - 에러 처리
 api.interceptors.response.use(
   (response) => {
@@ -48,8 +62,8 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // 401 에러 시 토큰 갱신 시도
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 토큰 만료 에러 시 토큰 갱신 시도
+    if (isTokenExpiredError(error) && !originalRequest._retry) {
       originalRequest._retry = true;
       
       try {
@@ -67,11 +81,16 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // 토큰 갱신 실패 시 로그아웃 처리
+        // 토큰 갱신 실패 시 세션 만료 이벤트 발생
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        
+        // 세션 만료 이벤트 발생
+        window.dispatchEvent(new CustomEvent('session-expired', {
+          detail: { message: '로그인 세션이 만료되었습니다. 다시 로그인해주세요.' }
+        }));
+        
         return Promise.reject(refreshError);
       }
     }

@@ -7,6 +7,18 @@ import { useAuth } from '../store/AuthContext';
 import { useToast } from '../store/ToastContext';
 import programService from '../services/programService';
 
+// 썸네일 URL 생성 헬퍼 함수
+// nginx(프로덕션)는 /uploads를 백엔드로 프록시, 개발환경은 vite proxy 사용
+const getThumbnailUrl = (thumbnailPath) => {
+  if (!thumbnailPath) return null;
+  // 이미 완전한 URL이면 그대로 반환
+  if (thumbnailPath.startsWith('http')) return thumbnailPath;
+  // /uploads 경로인 경우: nginx 또는 vite proxy가 처리
+  if (thumbnailPath.startsWith('/uploads')) return thumbnailPath;
+  // 상대 경로면 그대로 반환
+  return thumbnailPath;
+};
+
 const PageContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
@@ -30,6 +42,7 @@ const ProgramGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
+  min-height: 600px;
 `;
 
 const ProgramCard = styled(Card)`
@@ -42,13 +55,24 @@ const ProgramCard = styled(Card)`
   }
 `;
 
-const ProgramImage = styled.div`
+const ProgramImageContainer = styled.div`
   width: 100%;
   height: 180px;
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 4rem;
+  overflow: hidden;
+`;
+
+const ProgramImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ProgramIcon = styled.div`
   font-size: 4rem;
 `;
 
@@ -110,8 +134,52 @@ const ProgramStatus = styled.span`
     : 'background-color: #fee2e2; color: #991b1b;'}
 `;
 
+// 페이지네이션 스타일
+const PaginationContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 3rem;
+  padding: 1rem 0;
+`;
+
+const PageButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 0.75rem;
+  border: 1px solid ${({ $active }) => $active ? 'var(--primary-color)' : 'var(--border-color)'};
+  border-radius: var(--border-radius);
+  background-color: ${({ $active }) => $active ? 'var(--primary-color)' : 'white'};
+  color: ${({ $active }) => $active ? 'white' : 'var(--text-primary)'};
+  font-size: 0.875rem;
+  font-weight: ${({ $active }) => $active ? '600' : '400'};
+  cursor: ${({ $disabled }) => $disabled ? 'not-allowed' : 'pointer'};
+  opacity: ${({ $disabled }) => $disabled ? '0.5' : '1'};
+  transition: var(--transition);
+
+  &:hover:not(:disabled) {
+    background-color: ${({ $active }) => $active ? 'var(--primary-dark)' : 'var(--background-color)'};
+    border-color: var(--primary-color);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+`;
+
+const PageInfo = styled.span`
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 1rem;
+`;
+
 const getProgramIcon = (name) => {
-  if (name?.includes('화재') || name?.includes('소방')) return '🔥';
+  if (name?.includes('화재') || name?.includes('소방') || name?.includes('소화기')) return '🔥';
   if (name?.includes('수난') || name?.includes('물')) return '🌊';
   if (name?.includes('교통')) return '🚗';
   if (name?.includes('응급') || name?.includes('심폐')) return '⚡';
@@ -120,30 +188,51 @@ const getProgramIcon = (name) => {
   return '🛡️';
 };
 
+const ITEMS_PER_PAGE = 9;
+
 const Programs = () => {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   
   const { isAuthenticated } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchPrograms();
-  }, []);
+    fetchPrograms(currentPage);
+  }, [currentPage]);
 
-  const fetchPrograms = async () => {
+  const fetchPrograms = async (page) => {
     try {
       setLoading(true);
-      const response = await programService.getPrograms();
+      const response = await programService.getPrograms({
+        page,
+        limit: ITEMS_PER_PAGE
+      });
       if (response.success) {
         setPrograms(response.data || []);
+        // 페이지네이션 정보 설정
+        const pagination = response.pagination;
+        if (pagination) {
+          setCurrentPage(pagination.page);
+          setTotalPages(pagination.totalPages);
+          setTotalItems(pagination.total);
+        }
       }
     } catch (error) {
       toast.error('프로그램 목록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleReservation = (programId) => {
@@ -153,6 +242,25 @@ const Programs = () => {
       return;
     }
     navigate(`/reservation?program=${programId}`);
+  };
+
+  // 페이지 번호 배열 생성
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
   };
 
   if (loading) {
@@ -179,9 +287,26 @@ const Programs = () => {
               hoverable
               onClick={() => navigate(`/programs/${program.id}`)}
             >
-              <ProgramImage>
-                {getProgramIcon(program.name)}
-              </ProgramImage>
+              <ProgramImageContainer>
+                {program.thumbnail ? (
+                  <ProgramImage
+                    src={getThumbnailUrl(program.thumbnail)}
+                    alt={program.name}
+                    onError={(e) => {
+                      // 이미지 로딩 실패 시 기본 아이콘으로 대체
+                      e.target.onerror = null;
+                      e.target.src = '';
+                      e.target.style.display = 'none';
+                      const iconDiv = document.createElement('div');
+                      iconDiv.style.fontSize = '4rem';
+                      iconDiv.textContent = getProgramIcon(program.name);
+                      e.target.parentNode.appendChild(iconDiv);
+                    }}
+                  />
+                ) : (
+                  <ProgramIcon>{getProgramIcon(program.name)}</ProgramIcon>
+                )}
+              </ProgramImageContainer>
               <ProgramContent>
                 <ProgramName>{program.name}</ProgramName>
                 <ProgramDescription>{program.description}</ProgramDescription>
@@ -213,6 +338,57 @@ const Programs = () => {
         {programs.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
             등록된 프로그램이 없습니다.
+          </div>
+        )}
+
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <PaginationContainer>
+            <PageButton
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              $disabled={currentPage === 1}
+            >
+              {'<<'}
+            </PageButton>
+            <PageButton
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              $disabled={currentPage === 1}
+            >
+              {'<'}
+            </PageButton>
+
+            {getPageNumbers().map((page) => (
+              <PageButton
+                key={page}
+                $active={page === currentPage}
+                onClick={() => handlePageChange(page)}
+              >
+                {page}
+              </PageButton>
+            ))}
+
+            <PageButton
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              $disabled={currentPage === totalPages}
+            >
+              {'>'}
+            </PageButton>
+            <PageButton
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              $disabled={currentPage === totalPages}
+            >
+              {'>>'}
+            </PageButton>
+          </PaginationContainer>
+        )}
+
+        {totalItems > 0 && (
+          <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            총 {totalItems}개 프로그램 | {currentPage} / {totalPages} 페이지
           </div>
         )}
       </PageContainer>

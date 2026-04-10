@@ -83,8 +83,16 @@ class AuthController {
    */
   async refreshToken(req, res, next) {
     try {
-      const { userId, username } = req.user;
-      const result = await authService.refreshToken(userId, username);
+      const { refreshToken } = req.body;
+      
+      if (!refreshToken) {
+        return res.status(400).json({
+          success: false,
+          message: '리프레시 토큰이 필요합니다.'
+        });
+      }
+      
+      const result = await authService.refreshToken(refreshToken);
       
       return successResponse(res, result, '토큰이 갱신되었습니다.');
     } catch (error) {

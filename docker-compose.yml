@@ -14,12 +14,14 @@ services:
     container_name: safety-mysql
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE: safety_experience
       MYSQL_USER: ${DB_USER:-safety}
       MYSQL_PASSWORD: ${DB_PASSWORD:-safetypassword}
+      TZ: Asia/Seoul
+      MYSQL_INITDB_SKIP_TZINFO: 1
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -71,12 +73,14 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_NAME=safety_experience
       - JWT_SECRET=${JWT_SECRET:-}
-      - JWT_EXPIRES_IN=24h
+      - JWT_EXPIRES_IN=1h
       - JWT_REFRESH_EXPIRES_IN=7d
       - FACE_RECOGNITION_URL=http://face-recognition:5001
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+    user: "1001:1001"
     volumes:
       - ./backend/src:/app/src:ro
+      - ./backend/uploads:/app/uploads
     networks:
       - safety-network
     depends_on:
@@ -92,7 +96,6 @@ services:
       start_period: 40s
     security_opt:
       - no-new-privileges:true
-    read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
       - /app/tmp:noexec,nosuid,size=10m
@@ -102,11 +105,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
     container_name: safety-frontend
     restart: unless-stopped
     ports:
       - "5173:80"
-      - "443:443"
+      - "5443:443"
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:3000/api}
     networks:

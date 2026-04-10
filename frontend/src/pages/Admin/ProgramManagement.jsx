@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Layout } from '../../components/layout';
 import { Button, Card, Input, Modal, Loading } from '../../components/ui';
@@ -43,6 +44,30 @@ const SidebarLink = styled.a`
   border-left: 3px solid ${({ $active }) => $active ? 'var(--primary-color)' : 'transparent'};
   transition: var(--transition);
   cursor: pointer;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const SidebarDivider = styled.div`
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 1rem 1.5rem;
+`;
+
+const SidebarButton = styled.button`
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  background-color: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
   
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
@@ -257,6 +282,86 @@ const FormRow = styled.div`
   gap: 1rem;
 `;
 
+const ThumbnailUpload = styled.div`
+  width: 100%;
+`;
+
+const ThumbnailInputLabel = styled.label`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 150px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  
+  &:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(37, 99, 235, 0.05);
+  }
+`;
+
+const ThumbnailInput = styled.input`
+  display: none;
+`;
+
+const UploadIcon = styled.span`
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+`;
+
+const UploadText = styled.span`
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+`;
+
+const UploadHint = styled.span`
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+`;
+
+const ThumbnailPreviewContainer = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+`;
+
+const ThumbnailImage = styled.img`
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+`;
+
+const RemoveThumbnailButton = styled.button`
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: var(--transition);
+  
+  &:hover {
+    background-color: rgb(239, 68, 68);
+  }
+`;
+
 const ConfirmText = styled.p`
   font-size: 1rem;
   color: var(--text-primary);
@@ -281,6 +386,8 @@ const ProgramManagement = () => {
     location: '',
     status: 'active'
   });
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState(null);
   
   const { isAdmin } = useAuth();
   const toast = useToast();
@@ -298,7 +405,7 @@ const ProgramManagement = () => {
   const fetchPrograms = async () => {
     try {
       setLoading(true);
-      const response = await programService.getPrograms({ page, limit: 10, search: searchQuery });
+      const response = await programService.getPrograms({ page, limit: 10, search: searchQuery, is_active: 'null' });
       if (response.success) {
         setPrograms(response.data || []);
         setTotalPages(response.pagination?.totalPages || 1);
@@ -326,6 +433,8 @@ const ProgramManagement = () => {
       location: '',
       status: 'active'
     });
+    setThumbnailFile(null);
+    setThumbnailPreview(null);
     setShowModal(true);
   };
 
@@ -340,6 +449,8 @@ const ProgramManagement = () => {
       location: program.location || '',
       status: program.status || 'active'
     });
+    setThumbnailFile(null);
+    setThumbnailPreview(program.thumbnail || null);
     setShowModal(true);
   };
 
@@ -357,15 +468,42 @@ const ProgramManagement = () => {
     }));
   };
 
+  const handleThumbnailChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('파일 크기는 5MB를 초과할 수 없습니다.');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast.error('이미지 파일만 업로드 가능합니다.');
+        return;
+      }
+      setThumbnailFile(file);
+      setThumbnailPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveThumbnail = () => {
+    setThumbnailFile(null);
+    setThumbnailPreview(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
-      const data = {
-        ...formData,
-        duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes) : null,
-        capacity: formData.capacity ? parseInt(formData.capacity) : null
-      };
+      const data = new FormData();
+      data.append('name', formData.name);
+      data.append('description', formData.description);
+      data.append('duration_minutes', formData.duration_minutes ? parseInt(formData.duration_minutes) : '');
+      data.append('capacity', formData.capacity ? parseInt(formData.capacity) : '');
+      data.append('location', formData.location);
+      data.append('status', formData.status);
+      
+      if (thumbnailFile) {
+        data.append('thumbnail', thumbnailFile);
+      }
 
       if (modalMode === 'create') {
         const response = await programService.createProgram(data);
@@ -419,6 +557,19 @@ const ProgramManagement = () => {
     }
   };
 
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      navigate('/');
+    }
+  };
+
   if (loading && programs.length === 0) {
     return (
       <Layout hideHeader hideFooter>
@@ -432,6 +583,11 @@ const ProgramManagement = () => {
               <SidebarLink href="/admin/programs" $active>🎯 프로그램 관리</SidebarLink>
               <SidebarLink href="/admin/board">📝 게시판 관리</SidebarLink>
               <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+            </SidebarNav>
+            <SidebarDivider />
+            <SidebarNav>
+              <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+              <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
             </SidebarNav>
           </Sidebar>
           <MainContent>
@@ -454,6 +610,11 @@ const ProgramManagement = () => {
             <SidebarLink href="/admin/programs" $active>🎯 프로그램 관리</SidebarLink>
             <SidebarLink href="/admin/board">📝 게시판 관리</SidebarLink>
             <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+          </SidebarNav>
+          <SidebarDivider />
+          <SidebarNav>
+            <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+            <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
           </SidebarNav>
         </Sidebar>
         <MainContent>
@@ -598,6 +759,34 @@ const ProgramManagement = () => {
                 onChange={handleInputChange}
                 placeholder="프로그램 설명을 입력하세요"
               />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>썸네일 이미지</Label>
+              <ThumbnailUpload>
+                {thumbnailPreview ? (
+                  <ThumbnailPreviewContainer>
+                    <ThumbnailImage
+                      src={thumbnailPreview.startsWith('blob:') ? thumbnailPreview : thumbnailPreview}
+                      alt="썸네일 미리보기"
+                    />
+                    <RemoveThumbnailButton onClick={handleRemoveThumbnail}>
+                      ✕
+                    </RemoveThumbnailButton>
+                  </ThumbnailPreviewContainer>
+                ) : (
+                  <ThumbnailInputLabel>
+                    <UploadIcon>📷</UploadIcon>
+                    <UploadText>이미지를 선택하세요</UploadText>
+                    <UploadHint>JPG, PNG, GIF, WEBP (최대 5MB)</UploadHint>
+                    <ThumbnailInput
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailChange}
+                    />
+                  </ThumbnailInputLabel>
+                )}
+              </ThumbnailUpload>
             </FormGroup>
 
             <FormRow>

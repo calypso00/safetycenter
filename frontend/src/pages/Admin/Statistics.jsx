@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
   LineChart,
@@ -59,6 +59,30 @@ const SidebarLink = styled(Link)`
   border-left: 3px solid ${({ $active }) => ($active ? 'var(--primary-color)' : 'transparent')};
   transition: var(--transition);
 
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const SidebarDivider = styled.div`
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 1rem 1.5rem;
+`;
+
+const SidebarButton = styled.button`
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  background-color: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
+  
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
@@ -266,6 +290,19 @@ const COLORS = ['#2563eb', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
 const PIE_COLORS = ['#f59e0b', '#2563eb', '#22c55e', '#ef4444'];
 
 const AdminLayout = ({ children, activeMenu }) => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      navigate('/');
+    }
+  };
+  
   return (
     <PageContainer>
       <Sidebar>
@@ -289,6 +326,15 @@ const AdminLayout = ({ children, activeMenu }) => {
           <SidebarLink to="/admin/statistics" $active={activeMenu === 'statistics'}>
             📈 통계
           </SidebarLink>
+        </SidebarNav>
+        <SidebarDivider />
+        <SidebarNav>
+          <SidebarLink to="/" $active={false}>
+            🏠 홈페이지로 이동
+          </SidebarLink>
+          <SidebarButton onClick={handleLogout}>
+            🚪 로그아웃
+          </SidebarButton>
         </SidebarNav>
       </Sidebar>
       <MainContent>{children}</MainContent>
@@ -358,10 +404,14 @@ const Statistics = () => {
         setProgramStats(programRes.data || []);
       }
       if (experiencesRes.success) {
-        setExperiences(experiencesRes.data?.logs || []);
+        // API 응답이 data를 직접 배열로 반환하거나, data.logs로 반환하는 경우 모두 처리
+        const logs = Array.isArray(experiencesRes.data) 
+          ? experiencesRes.data 
+          : (experiencesRes.data?.logs || []);
+        setExperiences(logs);
         setExperiencePagination((prev) => ({
           ...prev,
-          total: experiencesRes.data?.total || 0,
+          total: experiencesRes.pagination?.total || experiencesRes.data?.total || 0,
         }));
       }
     } catch (error) {
@@ -383,10 +433,14 @@ const Statistics = () => {
         limit: experiencePagination.limit,
       });
       if (res.success) {
-        setExperiences(res.data?.logs || []);
+        // API 응답이 data를 직접 배열로 반환하거나, data.logs로 반환하는 경우 모두 처리
+        const logs = Array.isArray(res.data) 
+          ? res.data 
+          : (res.data?.logs || []);
+        setExperiences(logs);
         setExperiencePagination((prev) => ({
           ...prev,
-          total: res.data?.total || 0,
+          total: res.pagination?.total || res.data?.total || 0,
         }));
       }
     } catch (error) {
@@ -540,7 +594,7 @@ const Statistics = () => {
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey="visits"
+                  dataKey="visit_count"
                   stroke="#2563eb"
                   name="방문자"
                   strokeWidth={2}

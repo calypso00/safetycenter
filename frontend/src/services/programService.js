@@ -3,7 +3,25 @@ import api from './api';
 const programService = {
   // 프로그램 목록 조회
   getPrograms: async (params = {}) => {
-    return api.get('/programs', { params });
+    const { page = 1, limit = 9, ...restParams } = params;
+    return api.get('/programs', {
+      params: {
+        page,
+        limit,
+        ...restParams
+      }
+    });
+  },
+
+  // 모든 프로그램 목록 조회 (페이지네이션 없이)
+  getAllPrograms: async (params = {}) => {
+    return api.get('/programs', {
+      params: {
+        page: 1,
+        limit: 100,
+        ...params
+      }
+    });
   },
 
   // 프로그램 상세 조회
@@ -18,12 +36,18 @@ const programService = {
 
   // 프로그램 등록 (Admin)
   createProgram: async (programData) => {
-    return api.post('/programs', programData);
+    const isFormData = programData instanceof FormData;
+    return api.post('/programs', programData, {
+      headers: isFormData ? { 'Content-Type': undefined } : {}
+    });
   },
 
   // 프로그램 수정 (Admin)
   updateProgram: async (id, programData) => {
-    return api.put(`/programs/${id}`, programData);
+    const isFormData = programData instanceof FormData;
+    return api.put(`/programs/${id}`, programData, {
+      headers: isFormData ? { 'Content-Type': undefined } : {}
+    });
   },
 
   // 프로그램 삭제 (Admin)

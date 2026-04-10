@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import { useToast } from './ToastContext';
 
 const AuthContext = createContext(null);
 
@@ -7,6 +9,24 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  // 세션 만료 이벤트 수신 및 처리
+  useEffect(() => {
+    const handleSessionExpired = (event) => {
+      const message = event.detail?.message || '로그인 세션이 만료되었습니다. 다시 로그인해주세요.';
+      toast.error(message);
+      setUser(null);
+      navigate('/login');
+    };
+
+    window.addEventListener('session-expired', handleSessionExpired);
+
+    return () => {
+      window.removeEventListener('session-expired', handleSessionExpired);
+    };
+  }, [navigate, toast]);
 
   // 초기 로드 시 사용자 정보 확인
   useEffect(() => {

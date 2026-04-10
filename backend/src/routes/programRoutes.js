@@ -3,6 +3,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const programController = require('../controllers/programController');
 const { authenticate, requireAdmin, optionalAuth } = require('../middleware/auth');
+const { uploadSingle, handleUploadError } = require('../middleware/upload');
 
 /**
  * 프로그램 라우트
@@ -22,6 +23,8 @@ router.get('/:id/slots', programController.getAvailableSlots);
 router.post('/',
   authenticate,
   requireAdmin,
+  uploadSingle,
+  handleUploadError,
   [
     body('name').notEmpty().withMessage('프로그램명은 필수입니다.'),
     body('duration_minutes').optional().isInt({ min: 1 }).withMessage('소요 시간은 1 이상이어야 합니다.'),
@@ -34,6 +37,8 @@ router.post('/',
 router.put('/:id',
   authenticate,
   requireAdmin,
+  uploadSingle,
+  handleUploadError,
   programController.updateProgram
 );
 

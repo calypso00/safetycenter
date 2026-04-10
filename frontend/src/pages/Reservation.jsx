@@ -217,7 +217,7 @@ const Reservation = () => {
     const fetchPrograms = async () => {
       try {
         setLoading(true);
-        const response = await programService.getPrograms();
+        const response = await programService.getAllPrograms();
         if (response.success) {
           setPrograms(response.data || []);
         }

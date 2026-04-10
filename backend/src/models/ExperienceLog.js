@@ -17,7 +17,7 @@ class ExperienceLog {
     const safeReservationId = reservation_id ?? null;
     
     const result = await db.query(
-      `INSERT INTO experience_logs (user_id, program_id, reservation_id, entry_time, entry_method, notes)
+      `INSERT INTO experience_logs (user_id, program_id, reservation_id, check_in_time, entry_method, notes)
        VALUES (?, ?, ?, NOW(), ?, ?)`,
       [user_id, safeProgramId, safeReservationId, entry_method, notes]
     );
@@ -50,19 +50,15 @@ class ExperienceLog {
   static async checkOut(id) {
     // 먼저 입장 기록 조회
     const log = await this.findById(id);
-    if (!log || log.exit_time) {
+    if (!log || log.check_out_time) {
       return false;
     }
 
-    const now = new Date();
-    const entryTime = new Date(log.entry_time);
-    const durationSeconds = Math.floor((now - entryTime) / 1000);
-
     const result = await db.query(
       `UPDATE experience_logs 
-       SET exit_time = NOW(), duration_seconds = ? 
-       WHERE id = ? AND exit_time IS NULL`,
-      [durationSeconds, id]
+       SET check_out_time = NOW()
+       WHERE id = ? AND check_out_time IS NULL`,
+      [id]
     );
     
     return result.affectedRows > 0;
@@ -95,7 +91,7 @@ class ExperienceLog {
        FROM experience_logs e
        JOIN programs p ON e.program_id = p.id
        WHERE e.user_id = ?
-       ORDER BY e.entry_time DESC
+       ORDER BY e.check_in_time DESC
        LIMIT ${limitNum} OFFSET ${offset}`,
       [userId]
     );
@@ -119,7 +115,7 @@ class ExperienceLog {
     const params = [];
 
     if (date) {
-      whereClause += ' AND DATE(e.entry_time) = ?';
+      whereClause += ' AND DATE(e.check_in_time) = ?';
       params.push(date);
     }
 
@@ -144,12 +140,13 @@ class ExperienceLog {
     // LIMIT/OFFSET은 prepared statement에서 정수 타입으로 처리되므로 SQL에 직접 포함
     const logs = await db.query(
       `SELECT e.*, p.name as program_name, p.location,
-              u.name as user_name, u.username
+              u.name as user_name, u.username,
+              TIMESTAMPDIFF(SECOND, e.check_in_time, e.check_out_time) as duration
        FROM experience_logs e
        JOIN programs p ON e.program_id = p.id
        JOIN users u ON e.user_id = u.id
        ${whereClause}
-       ORDER BY e.entry_time DESC
+       ORDER BY e.check_in_time DESC
        LIMIT ${limitNum} OFFSET ${offset}`,
       params
     );
@@ -167,8 +164,8 @@ class ExperienceLog {
        FROM experience_logs e
        JOIN programs p ON e.program_id = p.id
        JOIN users u ON e.user_id = u.id
-       WHERE DATE(e.entry_time) = CURDATE()
-       ORDER BY e.entry_time DESC`
+       WHERE DATE(e.check_in_time) = CURDATE()
+       ORDER BY e.check_in_time DESC`
     );
   }
 
@@ -182,8 +179,8 @@ class ExperienceLog {
        FROM experience_logs e
        JOIN programs p ON e.program_id = p.id
        JOIN users u ON e.user_id = u.id
-       WHERE e.exit_time IS NULL
-       ORDER BY e.entry_time ASC`
+       WHERE e.check_out_time IS NULL
+       ORDER BY e.check_in_time ASC`
     );
   }
 
@@ -197,8 +194,8 @@ class ExperienceLog {
       `SELECT e.*, p.name as program_name
        FROM experience_logs e
        JOIN programs p ON e.program_id = p.id
-       WHERE e.user_id = ? AND e.exit_time IS NULL
-       ORDER BY e.entry_time DESC
+       WHERE e.user_id = ? AND e.check_out_time IS NULL
+       ORDER BY e.check_in_time DESC
        LIMIT 1`,
       [userId]
     );
@@ -216,11 +213,11 @@ class ExperienceLog {
       `SELECT 
          COUNT(*) as total_visits,
          COUNT(DISTINCT user_id) as unique_visitors,
-         AVG(duration_seconds) as avg_duration,
+         AVG(TIMESTAMPDIFF(SECOND, check_in_time, check_out_time)) as avg_duration,
          SUM(CASE WHEN entry_method = 'face' THEN 1 ELSE 0 END) as face_entry_count,
          SUM(CASE WHEN entry_method = 'manual' THEN 1 ELSE 0 END) as manual_entry_count
        FROM experience_logs
-       WHERE DATE(entry_time) BETWEEN ? AND ?`,
+       WHERE DATE(check_in_time) BETWEEN ? AND ?`,
       [startDate, endDate]
     );
     return result[0];
@@ -235,13 +232,13 @@ class ExperienceLog {
   static async getDailyStats(startDate, endDate) {
     return await db.query(
       `SELECT 
-         DATE(entry_time) as date,
+         DATE(check_in_time) as date,
          COUNT(*) as visit_count,
          COUNT(DISTINCT user_id) as unique_visitors,
-         AVG(duration_seconds) as avg_duration
+         AVG(TIMESTAMPDIFF(SECOND, check_in_time, check_out_time)) as avg_duration
        FROM experience_logs
-       WHERE DATE(entry_time) BETWEEN ? AND ?
-       GROUP BY DATE(entry_time)
+       WHERE DATE(check_in_time) BETWEEN ? AND ?
+       GROUP BY DATE(check_in_time)
        ORDER BY date ASC`,
       [startDate, endDate]
     );
@@ -260,10 +257,10 @@ class ExperienceLog {
          p.name as program_name,
          COUNT(*) as visit_count,
          COUNT(DISTINCT e.user_id) as unique_visitors,
-         AVG(e.duration_seconds) as avg_duration
+         AVG(TIMESTAMPDIFF(SECOND, e.check_in_time, e.check_out_time)) as avg_duration
        FROM experience_logs e
        JOIN programs p ON e.program_id = p.id
-       WHERE DATE(e.entry_time) BETWEEN ? AND ?
+       WHERE DATE(e.check_in_time) BETWEEN ? AND ?
        GROUP BY p.id, p.name
        ORDER BY visit_count DESC`,
       [startDate, endDate]
@@ -276,7 +273,7 @@ class ExperienceLog {
    */
   static async countToday() {
     const result = await db.query(
-      'SELECT COUNT(*) as count FROM experience_logs WHERE DATE(entry_time) = CURDATE()'
+      'SELECT COUNT(*) as count FROM experience_logs WHERE DATE(check_in_time) = CURDATE()'
     );
     return result[0].count;
   }
@@ -287,7 +284,7 @@ class ExperienceLog {
    */
   static async countActive() {
     const result = await db.query(
-      'SELECT COUNT(*) as count FROM experience_logs WHERE exit_time IS NULL'
+      'SELECT COUNT(*) as count FROM experience_logs WHERE check_out_time IS NULL'
     );
     return result[0].count;
   }

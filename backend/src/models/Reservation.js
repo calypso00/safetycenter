@@ -229,23 +229,29 @@ class Reservation {
 
   /**
    * 예약 통계 조회
-   * @param {string} startDate - 시작 날짜
-   * @param {string} endDate - 종료 날짜
+   * @param {string} startDate - 시작 날짜 (선택사항)
+   * @param {string} endDate - 종료 날짜 (선택사항)
    * @returns {Promise<Object>} 통계 데이터
    */
   static async getStats(startDate, endDate) {
-    const result = await db.query(
-      `SELECT 
+    let query = `SELECT 
          COUNT(*) as total_count,
          SUM(participant_count) as total_participants,
          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
          SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_count,
          SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count,
          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count
-       FROM reservations
-        WHERE reservation_date BETWEEN ? AND ?`,
-      [startDate, endDate]
-    );
+       FROM reservations`;
+    
+    const params = [];
+    
+    // 날짜 범위가 지정된 경우에만 WHERE 절 추가
+    if (startDate && endDate) {
+      query += ` WHERE reservation_date BETWEEN ? AND ?`;
+      params.push(startDate, endDate);
+    }
+    
+    const result = await db.query(query, params);
     return result[0];
   }
 }

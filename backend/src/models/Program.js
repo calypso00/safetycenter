@@ -10,12 +10,12 @@ class Program {
    * @returns {Promise<number>} 생성된 프로그램 ID
    */
   static async create(programData) {
-    const { name, description, duration_minutes = 60, capacity = 20, location } = programData;
+    const { name, description, thumbnail, duration_minutes = 60, capacity = 20, location } = programData;
     
     const result = await db.query(
-      `INSERT INTO programs (name, description, duration_minutes, capacity, location)
-       VALUES (?, ?, ?, ?, ?)`,
-      [name, description, duration_minutes, capacity, location]
+      `INSERT INTO programs (name, description, thumbnail, duration_minutes, capacity, location)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, description, thumbnail, duration_minutes, capacity, location]
     );
     
     return result.insertId;
@@ -40,14 +40,27 @@ class Program {
    * @returns {Promise<Object>} 프로그램 목록과 전체 개수
    */
   static async findAll(options = {}) {
-    const { page = 1, limit = 10, isActive = true } = options;
+    const { page = 1, limit = 10, isActive = true, search = '' } = options;
     // page와 limit을 정수로 변환 (쿼리 파라미터는 문자열로 전달될 수 있음)
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
     const offset = (pageNum - 1) * limitNum;
     
-    const whereClause = isActive !== null ? "WHERE status = ?" : '';
-    const params = isActive !== null ? ['active'] : [];
+    const conditions = [];
+    const params = [];
+
+    if (isActive !== null) {
+      conditions.push('status = ?');
+      params.push(isActive ? 'active' : 'inactive');
+    }
+
+    if (search) {
+      conditions.push('(name LIKE ? OR description LIKE ? OR location LIKE ?)');
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // 전체 개수 조회
     const countResult = await db.query(
@@ -88,7 +101,7 @@ class Program {
     const fields = [];
     const values = [];
 
-    const allowedFields = ['name', 'description', 'duration_minutes', 'capacity', 'location', 'status'];
+    const allowedFields = ['name', 'description', 'thumbnail', 'duration_minutes', 'capacity', 'location', 'status'];
     
     // is_active가 전달되면 status로 변환
     if (updateData.is_active !== undefined && updateData.status === undefined) {

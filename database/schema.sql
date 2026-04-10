@@ -78,6 +78,7 @@ CREATE TABLE PROGRAMS (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '프로그램 고유 ID',
     name VARCHAR(100) NOT NULL COMMENT '프로그램명',
     description TEXT COMMENT '프로그램 설명',
+    thumbnail VARCHAR(255) COMMENT '썸네일 이미지 경로',
     duration_minutes INT NOT NULL DEFAULT 60 COMMENT '소요 시간 (분)',
     capacity INT NOT NULL DEFAULT 20 COMMENT '수용 인원',
     location VARCHAR(100) COMMENT '체험 장소',

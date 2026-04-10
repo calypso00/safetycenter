@@ -72,9 +72,9 @@ const config = {
 
   // CORS settings
   cors: {
-    origin: process.env.NODE_ENV === 'development'
-      ? true  // 개발 환경에서는 모든 origin 허용
-      : getEnvVar('CORS_ORIGIN', 'http://localhost:3001').split(',').map(url => url.trim())
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',').map(url => url.trim())
+      : (process.env.NODE_ENV === 'development' ? true : ['http://localhost:3001'])
   }
 };
 

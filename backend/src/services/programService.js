@@ -11,15 +11,16 @@ class ProgramService {
    * @returns {Promise<Object>} 프로그램 목록
    */
   async getPrograms(options = {}) {
-    const { page = 1, limit = 10, isActive = true } = options;
+    const { page = 1, limit = 10, isActive = true, search = '' } = options;
     
-    const { programs, total } = await Program.findAll({ page, limit, isActive });
+    const { programs, total } = await Program.findAll({ page, limit, isActive, search });
     
     return {
       programs: programs.map(program => ({
         id: program.id,
         name: program.name,
         description: program.description,
+        thumbnail: program.thumbnail,
         duration_minutes: program.duration_minutes,
         capacity: program.capacity,
         location: program.location,
@@ -48,6 +49,7 @@ class ProgramService {
       id: program.id,
       name: program.name,
       description: program.description,
+      thumbnail: program.thumbnail,
       duration_minutes: program.duration_minutes,
       capacity: program.capacity,
       location: program.location,
@@ -99,7 +101,7 @@ class ProgramService {
    * @returns {Promise<Object>} 생성된 프로그램
    */
   async createProgram(programData) {
-    const { name, description, duration_minutes, capacity, location } = programData;
+    const { name, description, thumbnail, duration_minutes, capacity, location } = programData;
 
     if (!name) {
       throw new BadRequestError('프로그램명은 필수입니다.');
@@ -108,6 +110,7 @@ class ProgramService {
     const programId = await Program.create({
       name,
       description,
+      thumbnail,
       duration_minutes,
       capacity,
       location

@@ -10,7 +10,8 @@ const pool = mysql.createPool({
   database: config.database.name,
   waitForConnections: config.database.waitForConnections,
   connectionLimit: config.database.connectionLimit,
-  queueLimit: config.database.queueLimit
+  queueLimit: config.database.queueLimit,
+  timezone: '+09:00'
 });
 
 // 데이터베이스 연결 테스트

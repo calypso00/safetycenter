@@ -223,7 +223,8 @@ def create_app(config_class=None):
                 logger.info(f"Face verified: user_id={result['user_id']}, confidence={result['confidence']}")
                 return jsonify(result), 200
             else:
-                return jsonify(result), 404
+                # 인증 실패도 200으로 반환 (success: false로 구분)
+                return jsonify(result), 200
                 
         except Exception as e:
             logger.error(f"Error in verify_face: {e}")

@@ -23,8 +23,17 @@ const errorHandler = (err, req, res, next) => {
   // 운영 환경이 아닐 때 스택 트레이스 출력
   const stack = config.server.env === 'development' ? err.stack : undefined;
 
-  // 커스텀 에러 타입별 처리
-  if (err instanceof AppError) {
+  // JWT 에러 - 가장 먼저 체크 (우선순위 높음)
+  if (err.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = '토큰이 만료되었습니다.';
+  } else if (err.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = '유효하지 않은 토큰입니다.';
+  }
+
+  // 커스텀 에러 타입별 처리 (JWT 에러가 아닌 경우에만)
+  if (statusCode === 500 && err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
     
@@ -51,17 +60,6 @@ const errorHandler = (err, req, res, next) => {
   if (err.code === 'ER_NO_REFERENCED_ROW_2') {
     statusCode = 400;
     message = '참조하는 데이터가 존재하지 않습니다.';
-  }
-
-  // JWT 에러
-  if (err.name === 'JsonWebTokenError') {
-    statusCode = 401;
-    message = '유효하지 않은 토큰입니다.';
-  }
-
-  if (err.name === 'TokenExpiredError') {
-    statusCode = 401;
-    message = '토큰이 만료되었습니다.';
   }
 
   // 유효성 검사 에러 (express-validator)

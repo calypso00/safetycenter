@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useForm } from 'react-hook-form';
 import { Layout } from '../components/layout';
@@ -62,6 +62,18 @@ const FormRow = styled.div`
   @media (max-width: 600px) {
     grid-template-columns: 1fr;
   }
+`;
+
+const Divider = styled.div`
+  height: 1px;
+  background: var(--border-color);
+  margin: 1rem 0;
+`;
+
+const PasswordForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 `;
 
 const ReservationList = styled.div`
@@ -282,8 +294,24 @@ const getStatusText = (status) => {
   }
 };
 
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+};
+
 const MyPage = () => {
-  const [activeTab, setActiveTab] = useState('profile');
+  const location = useLocation();
+  
+  // URL 경로에 따라 초기 탭 설정
+  const getInitialTab = () => {
+    if (location.pathname === '/mypage/reservations') {
+      return 'reservations';
+    }
+    return 'profile';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [reservations, setReservations] = useState([]);
   const [experiences, setExperiences] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -314,6 +342,23 @@ const MyPage = () => {
     },
   });
 
+  // 비밀번호 변경 폼
+  const {
+    register: registerPassword,
+    handleSubmit: handleSubmitPassword,
+    formState: { errors: passwordErrors },
+    reset: resetPassword,
+    watch: watchPassword,
+  } = useForm({
+    defaultValues: {
+      current_password: '',
+      new_password: '',
+      confirm_password: '',
+    },
+  });
+
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   useEffect(() => {
     reset({
       name: user?.name || '',
@@ -321,6 +366,16 @@ const MyPage = () => {
       phone: user?.phone || '',
     });
   }, [user, reset]);
+
+  // URL 변경 시 탭 업데이트 (초기 로드 및 URL 변경 시에만 실행)
+  useEffect(() => {
+    if (location.pathname === '/mypage/reservations') {
+      setActiveTab('reservations');
+    } else if (location.pathname === '/mypage') {
+      setActiveTab('profile');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   useEffect(() => {
     if (activeTab === 'reservations') {
@@ -330,6 +385,7 @@ const MyPage = () => {
     } else if (activeTab === 'face') {
       fetchFaceStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Cleanup camera on unmount or tab change
@@ -495,6 +551,32 @@ const MyPage = () => {
     }
   };
 
+  const handlePasswordChange = async (data) => {
+    // 비밀번호 확인 검증
+    if (data.new_password !== data.confirm_password) {
+      toast.error('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      const response = await userService.updateProfile({
+        current_password: data.current_password,
+        new_password: data.new_password,
+      });
+      if (response.success) {
+        toast.success('비밀번호가 변경되었습니다.');
+        resetPassword();
+      } else {
+        toast.error(response.message || '비밀번호 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      toast.error(error.message || '비밀번호 변경에 실패했습니다.');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const handleCancelReservation = async (reservationId) => {
     try {
       const response = await reservationService.cancelReservation(reservationId);
@@ -532,10 +614,10 @@ const MyPage = () => {
         <PageTitle>마이페이지</PageTitle>
         
         <TabNav>
-          <TabButton $active={activeTab === 'profile'} onClick={() => setActiveTab('profile')}>
+          <TabButton $active={activeTab === 'profile'} onClick={() => { setActiveTab('profile'); navigate('/mypage', { replace: true }); }}>
             내 정보
           </TabButton>
-          <TabButton $active={activeTab === 'reservations'} onClick={() => setActiveTab('reservations')}>
+          <TabButton $active={activeTab === 'reservations'} onClick={() => { setActiveTab('reservations'); navigate('/mypage/reservations', { replace: true }); }}>
             예약 내역
           </TabButton>
           <TabButton $active={activeTab === 'experiences'} onClick={() => setActiveTab('experiences')}>
@@ -599,6 +681,53 @@ const MyPage = () => {
               </Form>
             </ContentCard>
             
+            <ContentCard title="비밀번호 변경">
+              <PasswordForm onSubmit={handleSubmitPassword(handlePasswordChange)}>
+                <Input
+                  label="현재 비밀번호"
+                  name="current_password"
+                  type="password"
+                  required
+                  {...registerPassword('current_password', {
+                    required: '현재 비밀번호를 입력해주세요.',
+                  })}
+                  error={passwordErrors.current_password?.message}
+                />
+                <Divider />
+                <FormRow>
+                  <Input
+                    label="새 비밀번호"
+                    name="new_password"
+                    type="password"
+                    required
+                    {...registerPassword('new_password', {
+                      required: '새 비밀번호를 입력해주세요.',
+                      minLength: {
+                        value: 6,
+                        message: '비밀번호는 최소 6자 이상이어야 합니다.',
+                      },
+                    })}
+                    error={passwordErrors.new_password?.message}
+                  />
+                  <Input
+                    label="새 비밀번호 확인"
+                    name="confirm_password"
+                    type="password"
+                    required
+                    {...registerPassword('confirm_password', {
+                      required: '새 비밀번호 확인을 입력해주세요.',
+                      validate: (value) =>
+                        value === watchPassword('new_password') || '비밀번호가 일치하지 않습니다.',
+                    })}
+                    error={passwordErrors.confirm_password?.message}
+                  />
+                </FormRow>
+                <Button type="submit" disabled={passwordLoading}>
+                  {passwordLoading ? '변경 중...' : '비밀번호 변경'}
+                </Button>
+              </PasswordForm>
+            </ContentCard>
+            
             <ContentCard title="계정 관리">
               <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
                 회원 탈퇴
@@ -619,8 +748,8 @@ const MyPage = () => {
                     <ReservationInfo>
                       <ReservationTitle>{reservation.program_name || '프로그램'}</ReservationTitle>
                       <ReservationMeta>
-                        <span>날짜: {reservation.reserved_date}</span>
-                        <span>시간: {reservation.reserved_time}</span>
+                        <span>날짜: {formatDate(reservation.reservation_date)}</span>
+                        <span>시간: {reservation.time_slot}</span>
                         <span>참여자: {reservation.participant_count}명</span>
                       </ReservationMeta>
                     </ReservationInfo>
@@ -691,7 +820,7 @@ const MyPage = () => {
               {faceStatus?.is_registered ? (
                 <>
                   <FaceStatusCard $registered>
-                    <FaceStatusIcon>face</FaceStatusIcon>
+                    <FaceStatusIcon>😊</FaceStatusIcon>
                     <FaceStatusText>
                       <FaceStatusTitle $registered>얼굴 등록됨</FaceStatusTitle>
                       <FaceStatusDesc $registered>

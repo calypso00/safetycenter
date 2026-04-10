@@ -71,6 +71,16 @@ const adminService = {
     return api.get('/admin/logs', { params });
   },
 
+  // 관리자 로그 상세 조회
+  getAdminLogById: async (id) => {
+    return api.get(`/admin/logs/${id}`);
+  },
+
+  // 관리자 로그 통계 조회
+  getAdminLogStats: async (params = {}) => {
+    return api.get('/admin/logs/stats', { params });
+  },
+
   // 전체 통계 조회 (기간별)
   getStats: async (params = {}) => {
     return api.get('/admin/stats', { params });

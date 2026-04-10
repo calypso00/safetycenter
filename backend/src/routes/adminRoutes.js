@@ -40,4 +40,9 @@ router.put('/reservations/:id', adminController.updateReservation);
 // 체험 기록 관리
 router.get('/experiences', adminController.getExperienceList);
 
+// 관리자 로그 관리
+router.get('/logs', adminController.getLogList);
+router.get('/logs/stats', adminController.getLogStats);
+router.get('/logs/:id', adminController.getLogDetail);
+
 module.exports = router;

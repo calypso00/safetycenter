@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './store/AuthContext';
 import { ToastProvider } from './store/ToastContext';
 import GlobalStyles from './styles/GlobalStyles';
 import Toast from './components/ui/Toast';
+import ScrollToTop from './components/ScrollToTop';
 
 // Pages
 import Home from './pages/Home';
@@ -176,13 +177,14 @@ function AppRoutes() {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <ToastProvider>
+      <ScrollToTop />
+      <ToastProvider>
+        <AuthProvider>
           <GlobalStyles />
           <Toast />
           <AppRoutes />
-        </ToastProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </ToastProvider>
     </Router>
   );
 }

@@ -64,7 +64,7 @@ class BoardController {
    */
   async updatePost(req, res, next) {
     try {
-      const post = await boardService.updatePost(req.params.id, req.user.id, req.body);
+      const post = await boardService.updatePost(req.params.id, req.user.id, req.body, req.user.role);
       return successResponse(res, post, '게시글이 수정되었습니다.');
     } catch (error) {
       next(error);
@@ -77,7 +77,7 @@ class BoardController {
    */
   async deletePost(req, res, next) {
     try {
-      await boardService.deletePost(req.params.id, req.user.id);
+      await boardService.deletePost(req.params.id, req.user.id, req.user.role);
       return successResponse(res, null, '게시글이 삭제되었습니다.');
     } catch (error) {
       next(error);

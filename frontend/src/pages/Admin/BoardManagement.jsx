@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Layout } from '../../components/layout';
 import { Button, Card, Input, Modal, Loading } from '../../components/ui';
@@ -47,6 +48,81 @@ const SidebarLink = styled.a`
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
+  }
+`;
+
+const SidebarDivider = styled.div`
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 1rem 1.5rem;
+`;
+
+const SidebarButton = styled.button`
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  background-color: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const SidebarSubmenu = styled.div`
+  background-color: rgba(0, 0, 0, 0.2);
+`;
+
+const SidebarSubmenuLink = styled.a`
+  padding: 0.6rem 1.5rem 0.6rem 3rem;
+  font-size: 0.875rem;
+  color: ${({ $active }) => $active ? 'white' : '#94a3b8'};
+  background-color: ${({ $active }) => $active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
+  border-left: 3px solid ${({ $active }) => $active ? 'var(--primary-color)' : 'transparent'};
+  margin-left: 0;
+  transition: var(--transition);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const CategoryTabContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: var(--bg-primary);
+  border-radius: var(--border-radius);
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+`;
+
+const CategoryTab = styled.button`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+  background-color: ${({ $active }) => $active ? 'var(--primary-color)' : 'var(--bg-secondary)'};
+  color: ${({ $active }) => $active ? 'white' : 'var(--text-primary)'};
+  
+  &:hover {
+    background-color: ${({ $active }) => $active ? 'var(--primary-dark)' : 'var(--border-color)'};
   }
 `;
 
@@ -169,8 +245,6 @@ const CategoryBadge = styled.span`
         return 'background-color: #fef3c7; color: #92400e;';
       case 'faq':
         return 'background-color: #dcfce7; color: #166534;';
-      case 'general':
-        return 'background-color: var(--bg-tertiary); color: var(--text-secondary);';
       default:
         return 'background-color: var(--bg-tertiary); color: var(--text-secondary);';
     }
@@ -192,6 +266,8 @@ const ActionButton = styled.button`
         return 'background-color: #fee2e2; color: #991b1b; &:hover { background-color: #fecaca; }';
       case 'primary':
         return 'background-color: #dbeafe; color: #1e40af; &:hover { background-color: #bfdbfe; }';
+      case 'success':
+        return 'background-color: #dcfce7; color: #166534; &:hover { background-color: #bbf7d0; }';
       default:
         return 'background-color: var(--bg-tertiary); color: var(--text-primary); &:hover { background-color: var(--border-color); }';
     }
@@ -328,19 +404,116 @@ const CommentActions = styled.div`
   margin-top: 0.5rem;
 `;
 
+// 글 등록/수정 폼 스타일
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
+const FormLabel = styled.label`
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+`;
+
+const FormInput = styled.input`
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+`;
+
+const FormTextarea = styled.textarea`
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 200px;
+  resize: vertical;
+  font-family: inherit;
+  
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+`;
+
+const FormSelect = styled.select`
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+`;
+
+// 댓글 입력 폼 스타일
+const CommentInputContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1rem;
+`;
+
+const CommentTextarea = styled.textarea`
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+  
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+`;
+
+const CommentButtonGroup = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+`;
+
 const categoryLabels = {
   notice: '공지사항',
   inquiry: '문의',
-  faq: 'FAQ',
-  general: '일반'
+  faq: 'FAQ'
 };
 
 const categoryOptions = [
   { value: '', label: '전체' },
   { value: 'notice', label: '공지사항' },
   { value: 'inquiry', label: '문의' },
-  { value: 'faq', label: 'FAQ' },
-  { value: 'general', label: '일반' }
+  { value: 'faq', label: 'FAQ' }
+];
+
+const writeCategoryOptions = [
+  { value: 'notice', label: '공지사항' },
+  { value: 'faq', label: 'FAQ' }
 ];
 
 const BoardManagement = () => {
@@ -351,6 +524,23 @@ const BoardManagement = () => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [boardSubmenuOpen, setBoardSubmenuOpen] = useState(true);
+  
+  // 글 등록/수정 모달 상태
+  const [showWriteModal, setShowWriteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  
+  // 댓글 입력 상태
+  const [commentInput, setCommentInput] = useState('');
+  const [commentSubmitLoading, setCommentSubmitLoading] = useState(false);
+  
+  // 글 등록/수정 폼 데이터
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    category: 'notice'
+  });
   
   // 필터 상태
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -359,17 +549,14 @@ const BoardManagement = () => {
   const { isAdmin } = useAuth();
   const toast = useToast();
 
-  useEffect(() => {
-    if (!isAdmin()) {
-      toast.error('관리자 권한이 필요합니다.');
-      window.location.href = '/';
-      return;
-    }
-    
-    fetchPosts();
-  }, [page]);
+  // 카테고리 메뉴 핸들러
+  const handleCategoryMenuClick = (category) => {
+    setCategoryFilter(category);
+    setPage(1);
+    // fetchPosts는 useEffect에서 categoryFilter 변경 시 자동 호출됨
+  };
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
@@ -389,18 +576,22 @@ const BoardManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, categoryFilter, searchQuery]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const handleFilterChange = () => {
     setPage(1);
-    fetchPosts();
+    // fetchPosts는 useEffect에서 자동 호출됨 (page, categoryFilter, searchQuery 변경 시)
   };
 
   const handleResetFilters = () => {
     setCategoryFilter('');
     setSearchQuery('');
     setPage(1);
-    setTimeout(() => fetchPosts(), 0);
+    // fetchPosts는 useEffect에서 자동 호출됨
   };
 
   const handleSearch = (e) => {
@@ -417,6 +608,102 @@ const BoardManagement = () => {
       }
     } catch (error) {
       toast.error('게시글 상세 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  // 글 등록 모달 열기
+  const handleOpenWriteModal = () => {
+    setFormData({
+      title: '',
+      content: '',
+      category: 'notice'
+    });
+    setShowWriteModal(true);
+  };
+
+  // 글 수정 모달 열기
+  const handleOpenEditModal = async (post) => {
+    try {
+      const response = await boardService.getPostById(post.id);
+      if (response.success) {
+        setSelectedPost(response.data);
+        setFormData({
+          title: response.data.title,
+          content: response.data.content,
+          category: response.data.category
+        });
+        setShowEditModal(true);
+      }
+    } catch (error) {
+      toast.error('게시글 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  // 폼 입력 핸들러
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // 글 등록 핸들러
+  const handleCreatePost = async () => {
+    if (!formData.title.trim()) {
+      toast.error('제목을 입력해주세요.');
+      return;
+    }
+    if (!formData.content.trim()) {
+      toast.error('내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSubmitLoading(true);
+      const response = await boardService.createPost(formData);
+      if (response.success) {
+        toast.success('게시글이 등록되었습니다.');
+        setShowWriteModal(false);
+        setFormData({ title: '', content: '', category: 'notice' });
+        fetchPosts();
+      } else {
+        toast.error(response.message || '게시글 등록에 실패했습니다.');
+      }
+    } catch (error) {
+      toast.error('게시글 등록에 실패했습니다.');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  // 글 수정 핸들러
+  const handleUpdatePost = async () => {
+    if (!formData.title.trim()) {
+      toast.error('제목을 입력해주세요.');
+      return;
+    }
+    if (!formData.content.trim()) {
+      toast.error('내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSubmitLoading(true);
+      const response = await boardService.updatePost(selectedPost.id, formData);
+      if (response.success) {
+        toast.success('게시글이 수정되었습니다.');
+        setShowEditModal(false);
+        setSelectedPost(null);
+        setFormData({ title: '', content: '', category: 'notice' });
+        fetchPosts();
+      } else {
+        toast.error(response.message || '게시글 수정에 실패했습니다.');
+      }
+    } catch (error) {
+      toast.error('게시글 수정에 실패했습니다.');
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -467,6 +754,39 @@ const BoardManagement = () => {
     }
   };
 
+  // 댓글 등록 핸들러
+  const handleCreateComment = async () => {
+    if (!commentInput.trim()) {
+      toast.error('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    if (!selectedPost) {
+      toast.error('게시글 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      setCommentSubmitLoading(true);
+      const response = await boardService.createComment(selectedPost.id, { content: commentInput });
+      if (response.success) {
+        toast.success('댓글이 등록되었습니다.');
+        setCommentInput('');
+        // 댓글 등록 후 게시글 상세 정보 다시 불러오기
+        const postResponse = await boardService.getPostById(selectedPost.id);
+        if (postResponse.success) {
+          setSelectedPost(postResponse.data);
+        }
+      } else {
+        toast.error(response.message || '댓글 등록에 실패했습니다.');
+      }
+    } catch (error) {
+      toast.error('댓글 등록에 실패했습니다.');
+    } finally {
+      setCommentSubmitLoading(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -489,6 +809,19 @@ const BoardManagement = () => {
     });
   };
 
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      navigate('/');
+    }
+  };
+
   if (loading && posts.length === 0) {
     return (
       <Layout hideHeader hideFooter>
@@ -500,8 +833,45 @@ const BoardManagement = () => {
               <SidebarLink href="/admin/users">👥 사용자 관리</SidebarLink>
               <SidebarLink href="/admin/reservations">📅 예약 관리</SidebarLink>
               <SidebarLink href="/admin/programs">🎯 프로그램 관리</SidebarLink>
-              <SidebarLink href="/admin/board" $active>📝 게시판 관리</SidebarLink>
+              <SidebarLink
+                onClick={() => setBoardSubmenuOpen(!boardSubmenuOpen)}
+                $active={true}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                📝 게시판 관리 {boardSubmenuOpen ? '▼' : '▶'}
+              </SidebarLink>
+              <SidebarSubmenu style={{ display: boardSubmenuOpen ? 'block' : 'none' }}>
+                <SidebarSubmenuLink
+                  $active={categoryFilter === ''}
+                  onClick={() => handleCategoryMenuClick('')}
+                >
+                  📋 전체 게시글
+                </SidebarSubmenuLink>
+                <SidebarSubmenuLink
+                  $active={categoryFilter === 'notice'}
+                  onClick={() => handleCategoryMenuClick('notice')}
+                >
+                  📢 공지사항
+                </SidebarSubmenuLink>
+                <SidebarSubmenuLink
+                  $active={categoryFilter === 'inquiry'}
+                  onClick={() => handleCategoryMenuClick('inquiry')}
+                >
+                  ❓ 문의
+                </SidebarSubmenuLink>
+                <SidebarSubmenuLink
+                  $active={categoryFilter === 'faq'}
+                  onClick={() => handleCategoryMenuClick('faq')}
+                >
+                  ❔ FAQ
+                </SidebarSubmenuLink>
+              </SidebarSubmenu>
               <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+            </SidebarNav>
+            <SidebarDivider />
+            <SidebarNav>
+              <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+              <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
             </SidebarNav>
           </Sidebar>
           <MainContent>
@@ -522,15 +892,87 @@ const BoardManagement = () => {
             <SidebarLink href="/admin/users">👥 사용자 관리</SidebarLink>
             <SidebarLink href="/admin/reservations">📅 예약 관리</SidebarLink>
             <SidebarLink href="/admin/programs">🎯 프로그램 관리</SidebarLink>
-            <SidebarLink href="/admin/board" $active>📝 게시판 관리</SidebarLink>
+            <SidebarLink
+              onClick={() => setBoardSubmenuOpen(!boardSubmenuOpen)}
+              $active={true}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              📝 게시판 관리 {boardSubmenuOpen ? '▼' : '▶'}
+            </SidebarLink>
+            <SidebarSubmenu style={{ display: boardSubmenuOpen ? 'block' : 'none' }}>
+              <SidebarSubmenuLink
+                $active={categoryFilter === ''}
+                onClick={() => handleCategoryMenuClick('')}
+              >
+                📋 전체 게시글
+              </SidebarSubmenuLink>
+              <SidebarSubmenuLink
+                $active={categoryFilter === 'notice'}
+                onClick={() => handleCategoryMenuClick('notice')}
+              >
+                📢 공지사항
+              </SidebarSubmenuLink>
+              <SidebarSubmenuLink
+                $active={categoryFilter === 'inquiry'}
+                onClick={() => handleCategoryMenuClick('inquiry')}
+              >
+                ❓ 문의
+              </SidebarSubmenuLink>
+              <SidebarSubmenuLink
+                $active={categoryFilter === 'faq'}
+                onClick={() => handleCategoryMenuClick('faq')}
+              >
+                ❔ FAQ
+              </SidebarSubmenuLink>
+            </SidebarSubmenu>
             <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+          </SidebarNav>
+          <SidebarDivider />
+          <SidebarNav>
+            <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+            <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
           </SidebarNav>
         </Sidebar>
         <MainContent>
           <PageHeader>
             <PageTitle>게시판 관리</PageTitle>
+            <Button
+              variant="primary"
+              size="large"
+              onClick={handleOpenWriteModal}
+              style={{ fontWeight: 'bold', padding: '0.75rem 1.5rem' }}
+            >
+              ✏️ 새 글 작성
+            </Button>
           </PageHeader>
 
+
+          <CategoryTabContainer>
+            <CategoryTab
+              $active={categoryFilter === ''}
+              onClick={() => handleCategoryMenuClick('')}
+            >
+              전체
+            </CategoryTab>
+            <CategoryTab
+              $active={categoryFilter === 'notice'}
+              onClick={() => handleCategoryMenuClick('notice')}
+            >
+              📢 공지사항
+            </CategoryTab>
+            <CategoryTab
+              $active={categoryFilter === 'inquiry'}
+              onClick={() => handleCategoryMenuClick('inquiry')}
+            >
+              ❓ 문의
+            </CategoryTab>
+            <CategoryTab
+              $active={categoryFilter === 'faq'}
+              onClick={() => handleCategoryMenuClick('faq')}
+            >
+              ❔ FAQ
+            </CategoryTab>
+          </CategoryTabContainer>
           <FilterBar>
             <FilterGroup>
               <FilterLabel>카테고리:</FilterLabel>
@@ -605,6 +1047,12 @@ const BoardManagement = () => {
                           상세
                         </ActionButton>
                         <ActionButton
+                          $variant="primary"
+                          onClick={() => handleOpenEditModal(post)}
+                        >
+                          수정
+                        </ActionButton>
+                        <ActionButton
                           $variant="danger"
                           onClick={() => handleDeletePost(post.id)}
                         >
@@ -638,6 +1086,7 @@ const BoardManagement = () => {
         </MainContent>
       </PageContainer>
 
+      {/* 게시글 상세 모달 */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
@@ -705,6 +1154,26 @@ const BoardManagement = () => {
               <ModalSectionTitle>
                 댓글 목록 ({selectedPost.comments?.length || 0})
               </ModalSectionTitle>
+              
+              {/* 댓글 입력 폼 */}
+              <CommentInputContainer>
+                <CommentTextarea
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  placeholder="댓글을 입력하세요..."
+                />
+                <CommentButtonGroup>
+                  <Button
+                    variant="primary"
+                    size="small"
+                    onClick={handleCreateComment}
+                    loading={commentSubmitLoading}
+                  >
+                    댓글 등록
+                  </Button>
+                </CommentButtonGroup>
+              </CommentInputContainer>
+              
               {selectedPost.comments && selectedPost.comments.length > 0 ? (
                 <CommentList>
                   {selectedPost.comments.map((comment) => (
@@ -731,6 +1200,122 @@ const BoardManagement = () => {
             </ModalSection>
           </ModalContent>
         )}
+      </Modal>
+
+      {/* 글 등록 모달 */}
+      <Modal
+        isOpen={showWriteModal}
+        onClose={() => setShowWriteModal(false)}
+        title="새 글 작성"
+        size="large"
+        footer={
+          <>
+            <Button
+              variant="primary"
+              onClick={handleCreatePost}
+              loading={submitLoading}
+            >
+              등록
+            </Button>
+            <Button variant="secondary" onClick={() => setShowWriteModal(false)}>
+              취소
+            </Button>
+          </>
+        }
+      >
+        <ModalContent>
+          <FormGroup>
+            <FormLabel>카테고리 *</FormLabel>
+            <FormSelect
+              name="category"
+              value={formData.category}
+              onChange={handleInputChange}
+            >
+              {writeCategoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </FormSelect>
+          </FormGroup>
+          <FormGroup>
+            <FormLabel>제목 *</FormLabel>
+            <FormInput
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              placeholder="제목을 입력하세요"
+            />
+          </FormGroup>
+          <FormGroup>
+            <FormLabel>내용 *</FormLabel>
+            <FormTextarea
+              name="content"
+              value={formData.content}
+              onChange={handleInputChange}
+              placeholder="내용을 입력하세요"
+            />
+          </FormGroup>
+        </ModalContent>
+      </Modal>
+
+      {/* 글 수정 모달 */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="게시글 수정"
+        size="large"
+        footer={
+          <>
+            <Button
+              variant="primary"
+              onClick={handleUpdatePost}
+              loading={submitLoading}
+            >
+              저장
+            </Button>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+              취소
+            </Button>
+          </>
+        }
+      >
+        <ModalContent>
+          <FormGroup>
+            <FormLabel>카테고리 *</FormLabel>
+            <FormSelect
+              name="category"
+              value={formData.category}
+              onChange={handleInputChange}
+            >
+              {writeCategoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </FormSelect>
+          </FormGroup>
+          <FormGroup>
+            <FormLabel>제목 *</FormLabel>
+            <FormInput
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              placeholder="제목을 입력하세요"
+            />
+          </FormGroup>
+          <FormGroup>
+            <FormLabel>내용 *</FormLabel>
+            <FormTextarea
+              name="content"
+              value={formData.content}
+              onChange={handleInputChange}
+              placeholder="내용을 입력하세요"
+            />
+          </FormGroup>
+        </ModalContent>
       </Modal>
     </Layout>
   );

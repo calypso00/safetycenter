@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Layout } from '../../components/layout';
 import { Button, Card, Loading, Modal, Input } from '../../components/ui';
@@ -44,6 +45,30 @@ const SidebarLink = styled.a`
   border-left: 3px solid ${({ $active }) => $active ? 'var(--primary-color)' : 'transparent'};
   transition: var(--transition);
   cursor: pointer;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const SidebarDivider = styled.div`
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 1rem 1.5rem;
+`;
+
+const SidebarButton = styled.button`
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  background-color: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
   
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
@@ -347,10 +372,41 @@ const ReservationManagement = () => {
 
   const handleEdit = (reservation) => {
     setEditingReservation(reservation);
+    
+    // 날짜 변환: MySQL DATE 타입은 이미 YYYY-MM-DD 형식이므로 그대로 사용
+    // 타임존 문제를 방지하기 위해 문자열 그대로 사용
+    let formattedDate = '';
+    if (reservation.reservation_date) {
+      // 날짜가 문자열인 경우 그대로 사용, Date 객체인 경우 로컬 날짜 추출
+      if (typeof reservation.reservation_date === 'string') {
+        formattedDate = reservation.reservation_date.split('T')[0];
+      } else {
+        const date = new Date(reservation.reservation_date);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        formattedDate = `${year}-${month}-${day}`;
+      }
+    }
+    
+    // 시간대 변환: MySQL TIME 타입은 "HH:MM:SS" 형식이므로 "HH:MM" 형식으로 변환
+    let formattedTimeSlot = '';
+    if (reservation.time_slot) {
+      // 시간대가 문자열인 경우 "HH:MM:SS" 또는 "HH:MM" 형식 처리
+      const timeStr = String(reservation.time_slot);
+      if (timeStr.includes(':')) {
+        // "HH:MM:SS" 또는 "HH:MM" 형식에서 "HH:MM" 추출
+        const parts = timeStr.split(':');
+        formattedTimeSlot = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+      } else {
+        formattedTimeSlot = timeStr;
+      }
+    }
+    
     setEditFormData({
       status: reservation.status || '',
-      reservation_date: reservation.reservation_date || '',
-      time_slot: reservation.time_slot || '',
+      reservation_date: formattedDate,
+      time_slot: formattedTimeSlot,
       participant_count: reservation.participant_count || 1
     });
     setShowEditModal(true);
@@ -404,6 +460,19 @@ const ReservationManagement = () => {
     });
   };
 
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      navigate('/');
+    }
+  };
+
   if (loading && reservations.length === 0) {
     return (
       <Layout hideHeader hideFooter>
@@ -417,6 +486,11 @@ const ReservationManagement = () => {
               <SidebarLink href="/admin/programs">🎯 프로그램 관리</SidebarLink>
               <SidebarLink href="/admin/board">📝 게시판 관리</SidebarLink>
               <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+            </SidebarNav>
+            <SidebarDivider />
+            <SidebarNav>
+              <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+              <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
             </SidebarNav>
           </Sidebar>
           <MainContent>
@@ -439,6 +513,11 @@ const ReservationManagement = () => {
             <SidebarLink href="/admin/programs">🎯 프로그램 관리</SidebarLink>
             <SidebarLink href="/admin/board">📝 게시판 관리</SidebarLink>
             <SidebarLink href="/admin/statistics">📈 통계</SidebarLink>
+          </SidebarNav>
+          <SidebarDivider />
+          <SidebarNav>
+            <SidebarLink href="/">🏠 홈페이지로 이동</SidebarLink>
+            <SidebarButton onClick={handleLogout}>🚪 로그아웃</SidebarButton>
           </SidebarNav>
         </Sidebar>
         <MainContent>

@@ -32,12 +32,7 @@ const verifyToken = (token) => {
   try {
     return jwt.verify(token, config.jwt.secret);
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      throw new Error('토큰이 만료되었습니다.');
-    }
-    if (error.name === 'JsonWebTokenError') {
-      throw new Error('유효하지 않은 토큰입니다.');
-    }
+    // 원본 에러를 그대로 throw하여 errorHandler에서 처리할 수 있도록 함
     throw error;
   }
 };

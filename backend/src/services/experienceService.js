@@ -76,7 +76,7 @@ class ExperienceService {
       throw new NotFoundError('체험 기록을 찾을 수 없습니다.');
     }
 
-    if (log.exit_time) {
+    if (log.check_out_time) {
       throw new BadRequestError('이미 퇴장 처리된 기록입니다.');
     }
 
@@ -109,8 +109,8 @@ class ExperienceService {
       program_id: log.program_id,
       program_name: log.program_name,
       reservation_id: log.reservation_id,
-      entry_time: log.entry_time,
-      exit_time: log.exit_time,
+      entry_time: log.check_in_time,
+      exit_time: log.check_out_time,
       duration_seconds: log.duration_seconds,
       entry_method: log.entry_method,
       notes: log.notes,
@@ -135,8 +135,8 @@ class ExperienceService {
         program_id: log.program_id,
         program_name: log.program_name,
         location: log.location,
-        entry_time: log.entry_time,
-        exit_time: log.exit_time,
+        entry_time: log.check_in_time,
+        exit_time: log.check_out_time,
         duration_seconds: log.duration_seconds,
         entry_method: log.entry_method
       })),
@@ -221,8 +221,8 @@ class ExperienceService {
         program_id: log.program_id,
         program_name: log.program_name,
         location: log.location,
-        entry_time: log.entry_time,
-        exit_time: log.exit_time,
+        entry_time: log.check_in_time,
+        exit_time: log.check_out_time,
         duration_seconds: log.duration_seconds,
         entry_method: log.entry_method,
         notes: log.notes
@@ -250,7 +250,7 @@ class ExperienceService {
         user_id: log.user_id,
         user_name: log.user_name,
         program_name: log.program_name,
-        entry_time: log.entry_time
+        entry_time: log.check_in_time
       }))
     };
   }
