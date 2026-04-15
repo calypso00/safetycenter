@@ -202,21 +202,9 @@ const SliderDot = styled.button`
 
 const ProgramGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: ${({ $itemsPerSlide }) => `repeat(${$itemsPerSlide || 4}, 1fr)`};
   gap: 1.5rem;
   min-width: 100%;
-  
-  @media (max-width: 1024px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
 `;
 
 const ProgramCard = styled(Card)`
@@ -408,16 +396,39 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);
+  const [itemsPerSlide, setItemsPerSlide] = useState(4);
   const { isAuthenticated } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
+  // 화면 크기에 따른 itemsPerSlide 설정
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      let newItemsPerSlide;
+      if (width <= 480) {
+        newItemsPerSlide = 1;
+      } else if (width <= 768) {
+        newItemsPerSlide = 2;
+      } else if (width <= 1024) {
+        newItemsPerSlide = 3;
+      } else {
+        newItemsPerSlide = 4;
+      }
+      setItemsPerSlide(newItemsPerSlide);
+      setCurrentIndex(0); // 화면 크기 변경 시 슬라이더 처음으로 리셋
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // 슬라이더 설정
-  const ITEMS_PER_SLIDE = 4;
   const AUTO_PLAY_INTERVAL = 5000; // 5초
 
   // 총 슬라이드 수 계산
-  const totalSlides = Math.ceil(programs.length / ITEMS_PER_SLIDE);
+  const totalSlides = Math.ceil(programs.length / itemsPerSlide);
 
   // 현재 탭에 맞는 데이터와 제목 반환
   const getCurrentData = () => {
@@ -611,13 +622,13 @@ const Home = () => {
                 ◀
               </SliderButton>
               
-              <SliderTrack $currentIndex={currentIndex}>
+              <SliderTrack $currentIndex={currentIndex} $itemsPerSlide={itemsPerSlide}>
                 {Array.from({ length: totalSlides }).map((_, slideIndex) => (
-                  <ProgramGrid key={slideIndex}>
+                  <ProgramGrid key={slideIndex} $itemsPerSlide={itemsPerSlide}>
                     {programs
                       .slice(
-                        slideIndex * ITEMS_PER_SLIDE,
-                        (slideIndex + 1) * ITEMS_PER_SLIDE
+                        slideIndex * itemsPerSlide,
+                        (slideIndex + 1) * itemsPerSlide
                       )
                       .map((program) => (
                         <ProgramCard
