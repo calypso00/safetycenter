@@ -3,12 +3,21 @@ import { useToast } from '../../store/ToastContext';
 
 const ToastContainer = styled.div`
   position: fixed;
-  top: 1rem;
+  top: max(1rem, env(safe-area-inset-top));
   right: 1rem;
   z-index: 2000;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  width: min(400px, calc(100vw - 2rem));
+
+  @media (max-width: 768px) {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: calc(100vw - 1.5rem);
+    max-width: 36rem;
+  }
 `;
 
 const toastTypes = {
@@ -42,12 +51,13 @@ const ToastItem = styled.div`
   padding: 0.875rem 1rem;
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-md);
-  min-width: 300px;
-  max-width: 400px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   animation: slideIn 0.3s ease-in-out;
-  
+
   ${({ $type }) => toastTypes[$type] || toastTypes.info}
-  
+
   @keyframes slideIn {
     from {
       transform: translateX(100%);
@@ -58,11 +68,26 @@ const ToastItem = styled.div`
       opacity: 1;
     }
   }
+
+  @media (max-width: 768px) {
+    border-left-width: 0;
+    border-top: 4px solid
+      ${({ $type }) => {
+        if ($type === 'success') return 'var(--success-color)';
+        if ($type === 'error') return 'var(--error-color)';
+        if ($type === 'warning') return 'var(--warning-color)';
+
+        return 'var(--info-color)';
+      }};
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  }
 `;
 
 const ToastMessage = styled.span`
   font-size: 0.875rem;
   font-weight: 500;
+  line-height: 1.4;
+  flex: 1;
 `;
 
 const CloseButton = styled.button`
@@ -91,11 +116,15 @@ const Toast = () => {
   const { toasts, removeToast } = useToast();
 
   return (
-    <ToastContainer>
+    <ToastContainer role="status" aria-live="polite" aria-atomic="true">
       {toasts.map((toast) => (
-        <ToastItem key={toast.id} $type={toast.type}>
+        <ToastItem key={toast.id} $type={toast.type} role="alert">
           <ToastMessage>{toast.message}</ToastMessage>
-          <CloseButton onClick={() => removeToast(toast.id)} />
+          <CloseButton
+            type="button"
+            aria-label="토스트 메시지 닫기"
+            onClick={() => removeToast(toast.id)}
+          />
         </ToastItem>
       ))}
     </ToastContainer>
