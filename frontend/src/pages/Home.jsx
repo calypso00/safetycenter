@@ -296,26 +296,58 @@ const ProgramStatus = styled.span`
     : 'background-color: #fee2e2; color: #991b1b;'}
 `;
 
-const TabContainer = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  justify-content: center;
+const BoardSection = styled.section`
+  background-color: var(--bg-secondary);
+  padding: 4rem 1rem;
 `;
 
-const Tab = styled.button`
-  padding: 0.75rem 1.5rem;
-  border: 1px solid ${({ $active }) => $active ? 'var(--primary-color)' : 'var(--border-color)'};
-  background-color: ${({ $active }) => $active ? 'var(--primary-color)' : 'var(--bg-primary)'};
-  color: ${({ $active }) => $active ? 'white' : 'var(--text-primary)'};
+const BoardColumnsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const BoardColumn = styled.div`
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
+  overflow: hidden;
+`;
+
+const BoardColumnHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background-color: var(--primary-color);
+`;
+
+const BoardColumnTitle = styled.h3`
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+`;
+
+const BoardColumnMoreLink = styled(Link)`
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.85);
   font-weight: 500;
-  cursor: pointer;
-  transition: var(--transition);
 
   &:hover {
-    border-color: var(--primary-color);
+    color: white;
+    text-decoration: underline;
   }
+`;
+
+const BoardColumnBody = styled.div`
+  padding: 0.5rem 0;
 `;
 
 const BoardList = styled.div`
@@ -351,48 +383,11 @@ const BoardDate = styled.span`
   color: var(--text-light);
 `;
 
-const FeaturesSection = styled.section`
-  background-color: var(--bg-secondary);
-  padding: 4rem 1rem;
-`;
-
-const FeaturesGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-`;
-
-const FeatureCard = styled.div`
-  text-align: center;
-  padding: 2rem;
-`;
-
-const FeatureIcon = styled.div`
-  font-size: 3rem;
-  margin-bottom: 1rem;
-`;
-
-const FeatureTitle = styled.h3`
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-`;
-
-const FeatureDescription = styled.p`
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
-`;
-
 const Home = () => {
   const [programs, setPrograms] = useState([]);
   const [notices, setNotices] = useState([]);
   const [faqList, setFaqList] = useState([]);
   const [qnaList, setQnaList] = useState([]);
-  const [activeTab, setActiveTab] = useState('notice');
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);
@@ -429,46 +424,6 @@ const Home = () => {
 
   // 총 슬라이드 수 계산
   const totalSlides = Math.ceil(programs.length / itemsPerSlide);
-
-  // 현재 탭에 맞는 데이터와 제목 반환
-  const getCurrentData = () => {
-    switch (activeTab) {
-      case 'notice':
-        return { items: notices, emptyMessage: '공지사항이 없습니다.' };
-      case 'faq':
-        return { items: faqList, emptyMessage: 'FAQ가 없습니다.' };
-      case 'inquiry':
-        return { items: qnaList, emptyMessage: '1:1 문의가 없습니다.' };
-      default:
-        return { items: [], emptyMessage: '데이터가 없습니다.' };
-    }
-  };
-
-  const getViewAllLink = () => {
-    switch (activeTab) {
-      case 'notice':
-        return '/board?category=notice';
-      case 'faq':
-        return '/board?category=faq';
-      case 'inquiry':
-        return '/board?category=inquiry';
-      default:
-        return '/board';
-    }
-  };
-
-  const getViewAllText = () => {
-    switch (activeTab) {
-      case 'notice':
-        return '전체 공지사항 보기';
-      case 'faq':
-        return '전체 FAQ 보기';
-      case 'inquiry':
-        return '전체 1:1 문의 보기';
-      default:
-        return '전체 보기';
-    }
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -568,39 +523,82 @@ const Home = () => {
         </HeroContent>
       </HeroSection>
 
-      {/* Features Section */}
-      <FeaturesSection>
-        <FeaturesGrid>
-          <FeatureCard>
-            <FeatureIcon>🔥</FeatureIcon>
-            <FeatureTitle>화재 안전 교육</FeatureTitle>
-            <FeatureDescription>
-              실제 화재 상황을 시뮬레이션하여 대피 요령과 소화기 사용법을 배웁니다.
-            </FeatureDescription>
-          </FeatureCard>
-          <FeatureCard>
-            <FeatureIcon>🌊</FeatureIcon>
-            <FeatureTitle>수난 안전 교육</FeatureTitle>
-            <FeatureDescription>
-              물놀이 안전 수칙과 익사 예방, 구조 방법을 체험합니다.
-            </FeatureDescription>
-          </FeatureCard>
-          <FeatureCard>
-            <FeatureIcon>🚗</FeatureIcon>
-            <FeatureTitle>교통 안전 교육</FeatureTitle>
-            <FeatureDescription>
-              교통사고 예방과 올바른 보행 및 운전 습관을 배웁니다.
-            </FeatureDescription>
-          </FeatureCard>
-          <FeatureCard>
-            <FeatureIcon>⚡</FeatureIcon>
-            <FeatureTitle>응급처치 교육</FeatureTitle>
-            <FeatureDescription>
-              심폐소생술과 기본 응급처치 방법을 실습합니다.
-            </FeatureDescription>
-          </FeatureCard>
-        </FeaturesGrid>
-      </FeaturesSection>
+      {/* Board Section - 3 Columns */}
+      <BoardSection>
+        <BoardColumnsGrid>
+          {/* 공지사항 */}
+          <BoardColumn>
+            <BoardColumnHeader>
+              <BoardColumnTitle>공지사항</BoardColumnTitle>
+              <BoardColumnMoreLink to="/board?category=notice">더보기 ›</BoardColumnMoreLink>
+            </BoardColumnHeader>
+            <BoardColumnBody>
+              {loading ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
+              ) : notices.length > 0 ? (
+                <BoardList style={{ padding: '0.5rem' }}>
+                  {notices.map((item) => (
+                    <BoardItem key={item.id} to={`/board/${item.id}`}>
+                      <BoardTitle>{item.title}</BoardTitle>
+                      <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
+                    </BoardItem>
+                  ))}
+                </BoardList>
+              ) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>공지사항이 없습니다.</div>
+              )}
+            </BoardColumnBody>
+          </BoardColumn>
+
+          {/* FAQ */}
+          <BoardColumn>
+            <BoardColumnHeader>
+              <BoardColumnTitle>FAQ</BoardColumnTitle>
+              <BoardColumnMoreLink to="/board?category=faq">더보기 ›</BoardColumnMoreLink>
+            </BoardColumnHeader>
+            <BoardColumnBody>
+              {loading ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
+              ) : faqList.length > 0 ? (
+                <BoardList style={{ padding: '0.5rem' }}>
+                  {faqList.map((item) => (
+                    <BoardItem key={item.id} to={`/board/${item.id}`}>
+                      <BoardTitle>{item.title}</BoardTitle>
+                      <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
+                    </BoardItem>
+                  ))}
+                </BoardList>
+              ) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>FAQ가 없습니다.</div>
+              )}
+            </BoardColumnBody>
+          </BoardColumn>
+
+          {/* 1:1 문의 */}
+          <BoardColumn>
+            <BoardColumnHeader>
+              <BoardColumnTitle>1:1 문의</BoardColumnTitle>
+              <BoardColumnMoreLink to="/board?category=inquiry">더보기 ›</BoardColumnMoreLink>
+            </BoardColumnHeader>
+            <BoardColumnBody>
+              {loading ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
+              ) : qnaList.length > 0 ? (
+                <BoardList style={{ padding: '0.5rem' }}>
+                  {qnaList.map((item) => (
+                    <BoardItem key={item.id} to={`/board/${item.id}`}>
+                      <BoardTitle>{item.title}</BoardTitle>
+                      <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
+                    </BoardItem>
+                  ))}
+                </BoardList>
+              ) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1:1 문의가 없습니다.</div>
+              )}
+            </BoardColumnBody>
+          </BoardColumn>
+        </BoardColumnsGrid>
+      </BoardSection>
 
       {/* Programs Section */}
       <Section>
@@ -721,61 +719,6 @@ const Home = () => {
         </div>
       </Section>
 
-      {/* Board Section with Tabs */}
-      <Section style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <SectionTitle>고객센터</SectionTitle>
-        <SectionSubtitle>
-          궁금한 사항을 확인하세요
-        </SectionSubtitle>
-        
-        <TabContainer>
-          <Tab 
-            $active={activeTab === 'notice'} 
-            onClick={() => setActiveTab('notice')}
-          >
-            공지사항
-          </Tab>
-          <Tab 
-            $active={activeTab === 'faq'} 
-            onClick={() => setActiveTab('faq')}
-          >
-            FAQ
-          </Tab>
-          <Tab
-            $active={activeTab === 'inquiry'}
-            onClick={() => setActiveTab('inquiry')}
-          >
-            1:1 문의
-          </Tab>
-        </TabContainer>
-        
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '2rem' }}>로딩 중...</div>
-        ) : (
-          <BoardList>
-            {getCurrentData().items.length > 0 ? (
-              getCurrentData().items.map((item) => (
-                <BoardItem key={item.id} to={`/board/${item.id}`}>
-                  <BoardTitle>{item.title}</BoardTitle>
-                  <BoardDate>
-                    {new Date(item.created_at).toLocaleDateString()}
-                  </BoardDate>
-                </BoardItem>
-              ))
-            ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                {getCurrentData().emptyMessage}
-              </div>
-            )}
-          </BoardList>
-        )}
-        
-        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-          <Button variant="outline" onClick={() => navigate(getViewAllLink())}>
-            {getViewAllText()}
-          </Button>
-        </div>
-      </Section>
     </Layout>
   );
 };
