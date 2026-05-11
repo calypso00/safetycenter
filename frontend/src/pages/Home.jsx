@@ -523,83 +523,6 @@ const Home = () => {
         </HeroContent>
       </HeroSection>
 
-      {/* Board Section - 3 Columns */}
-      <BoardSection>
-        <BoardColumnsGrid>
-          {/* 공지사항 */}
-          <BoardColumn>
-            <BoardColumnHeader>
-              <BoardColumnTitle>공지사항</BoardColumnTitle>
-              <BoardColumnMoreLink to="/board?category=notice">더보기 ›</BoardColumnMoreLink>
-            </BoardColumnHeader>
-            <BoardColumnBody>
-              {loading ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
-              ) : notices.length > 0 ? (
-                <BoardList style={{ padding: '0.5rem' }}>
-                  {notices.map((item) => (
-                    <BoardItem key={item.id} to={`/board/${item.id}`}>
-                      <BoardTitle>{item.title}</BoardTitle>
-                      <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
-                    </BoardItem>
-                  ))}
-                </BoardList>
-              ) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>공지사항이 없습니다.</div>
-              )}
-            </BoardColumnBody>
-          </BoardColumn>
-
-          {/* FAQ */}
-          <BoardColumn>
-            <BoardColumnHeader>
-              <BoardColumnTitle>FAQ</BoardColumnTitle>
-              <BoardColumnMoreLink to="/board?category=faq">더보기 ›</BoardColumnMoreLink>
-            </BoardColumnHeader>
-            <BoardColumnBody>
-              {loading ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
-              ) : faqList.length > 0 ? (
-                <BoardList style={{ padding: '0.5rem' }}>
-                  {faqList.map((item) => (
-                    <BoardItem key={item.id} to={`/board/${item.id}`}>
-                      <BoardTitle>{item.title}</BoardTitle>
-                      <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
-                    </BoardItem>
-                  ))}
-                </BoardList>
-              ) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>FAQ가 없습니다.</div>
-              )}
-            </BoardColumnBody>
-          </BoardColumn>
-
-          {/* 1:1 문의 */}
-          <BoardColumn>
-            <BoardColumnHeader>
-              <BoardColumnTitle>1:1 문의</BoardColumnTitle>
-              <BoardColumnMoreLink to="/board?category=inquiry">더보기 ›</BoardColumnMoreLink>
-            </BoardColumnHeader>
-            <BoardColumnBody>
-              {loading ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
-              ) : qnaList.length > 0 ? (
-                <BoardList style={{ padding: '0.5rem' }}>
-                  {qnaList.map((item) => (
-                    <BoardItem key={item.id} to={`/board/${item.id}`}>
-                      <BoardTitle>{item.title}</BoardTitle>
-                      <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
-                    </BoardItem>
-                  ))}
-                </BoardList>
-              ) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1:1 문의가 없습니다.</div>
-              )}
-            </BoardColumnBody>
-          </BoardColumn>
-        </BoardColumnsGrid>
-      </BoardSection>
-
       {/* Programs Section */}
       <Section>
         <SectionTitle>체험 프로그램</SectionTitle>
@@ -717,7 +640,84 @@ const Home = () => {
             전체 프로그램 보기
           </Button>
         </div>
-      </Section>
+    </Section>
+
+    {/* Board Section - 3 Columns */}
+    <BoardSection>
+      <BoardColumnsGrid>
+        {/* 공지사항 */}
+        <BoardColumn>
+          <BoardColumnHeader>
+            <BoardColumnTitle>공지사항</BoardColumnTitle>
+            <BoardColumnMoreLink to="/board?category=notice">더보기 ›</BoardColumnMoreLink>
+          </BoardColumnHeader>
+          <BoardColumnBody>
+            {loading ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
+            ) : notices.length > 0 ? (
+              <BoardList style={{ padding: '0.5rem' }}>
+                {notices.map((item) => (
+                  <BoardItem key={item.id} to={`/board/${item.id}`}>
+                    <BoardTitle>{item.title}</BoardTitle>
+                    <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
+                  </BoardItem>
+                ))}
+              </BoardList>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>공지사항이 없습니다.</div>
+            )}
+          </BoardColumnBody>
+        </BoardColumn>
+
+        {/* FAQ */}
+        <BoardColumn>
+          <BoardColumnHeader>
+            <BoardColumnTitle>FAQ</BoardColumnTitle>
+            <BoardColumnMoreLink to="/board?category=faq">더보기 ›</BoardColumnMoreLink>
+          </BoardColumnHeader>
+          <BoardColumnBody>
+            {loading ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
+            ) : faqList.length > 0 ? (
+              <BoardList style={{ padding: '0.5rem' }}>
+                {faqList.map((item) => (
+                  <BoardItem key={item.id} to={`/board/${item.id}`}>
+                    <BoardTitle>{item.title}</BoardTitle>
+                    <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
+                  </BoardItem>
+                ))}
+              </BoardList>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>FAQ가 없습니다.</div>
+            )}
+          </BoardColumnBody>
+        </BoardColumn>
+
+        {/* 1:1 문의 */}
+        <BoardColumn>
+          <BoardColumnHeader>
+            <BoardColumnTitle>1:1 문의</BoardColumnTitle>
+            <BoardColumnMoreLink to="/board?category=inquiry">더보기 ›</BoardColumnMoreLink>
+          </BoardColumnHeader>
+          <BoardColumnBody>
+            {loading ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>로딩 중...</div>
+            ) : qnaList.length > 0 ? (
+              <BoardList style={{ padding: '0.5rem' }}>
+                {qnaList.map((item) => (
+                  <BoardItem key={item.id} to={`/board/${item.id}`}>
+                    <BoardTitle>{item.title}</BoardTitle>
+                    <BoardDate>{new Date(item.created_at).toLocaleDateString()}</BoardDate>
+                  </BoardItem>
+                ))}
+              </BoardList>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1:1 문의가 없습니다.</div>
+            )}
+          </BoardColumnBody>
+        </BoardColumn>
+      </BoardColumnsGrid>
+    </BoardSection>
 
     </Layout>
   );
